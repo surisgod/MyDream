@@ -6,14 +6,13 @@
   <title>Мой Дневник</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
   <div class="max-w-3xl mx-auto px-4 py-8">
     <header class="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
-      <h1 class="text-xl font-bold text-indigo-400">📖 Мой дневник</h1>
+      <h1 class="text-xl font-bold text-indigo-400">📖 Мой личный дневник</h1>
       <span id="userInfo" class="text-xs text-slate-400"></span>
     </header>
 
@@ -26,42 +25,47 @@
     const SUPABASE_URL = 'https://oblwxfefeltikdkmodon.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_bhvGHwhyHMBsG7amxcEw0g_fkWowvv6';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const MY_TELEGRAM_ID = 8499249541;
 
-    // Инициализация Telegram WebApp
     const tg = window.Telegram.WebApp;
     tg.ready();
-    tg.expand(); // Разворачиваем на весь экран
+    tg.expand();
 
-    const user = tg.initDataUnsafe?.user;
-
-    // ВАШ TELEGRAM ID (узнать можно у бота @userinfobot)
-    const MY_TELEGRAM_ID = 123456789; // <-- ВСТАВЬТЕ СВОЙ TELEGRAM ID
-
-    async function init() {
+    async function loadNotes() {
       const container = document.getElementById('notesContainer');
+      const user = tg.initDataUnsafe?.user;
 
-      // Проверка авторизации через Telegram
+      // Проверка: если открыли не из Telegram или не вы — блокируем доступ
       if (!user || user.id !== MY_TELEGRAM_ID) {
-        container.innerHTML = '<p class="text-red-400 text-center py-10">⛔ Доступ запрещен. Этот дневник приватный.</p>';
+        container.innerHTML = `
+          <div class="bg-red-950/30 border border-red-800 rounded-xl p-6 text-center">
+            <h2 class="text-red-400 font-bold text-lg mb-2">⛔ Доступ запрещен</h2>
+            <p class="text-slate-400 text-sm">Этот дневник приватный и доступен только владельцу.</p>
+          </div>
+        `;
         return;
       }
 
-      document.getElementById('userInfo').innerText = `👤 ${user.first_name}`;
+      document.getElementById('userInfo').innerText = `👤 ${user.first_name || 'Владелец'}`;
 
-      // Загрузка только ваших записей
+      // Загружаем все записи из таблицы notes
       const { data, error } = await supabaseClient
         .from('notes')
         .select('*')
-        .eq('telegram_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('id', { ascending: false });
 
-      if (error || !data.length) {
-        container.innerHTML = '<p class="text-slate-500 text-center py-10">Записей пока нет.</p>';
+      if (error) {
+        container.innerHTML = '<p class="text-red-400 text-center py-10">Ошибка загрузки данных.</p>';
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p class="text-slate-500 text-center py-10">В дневнике пока нет записей.</p>';
         return;
       }
 
       container.innerHTML = data.map(note => `
-        <article class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <article class="bg-slate-900 border border-slate-800 rounded-xl p-4 transition hover:border-slate-700">
           <div class="text-xs text-slate-500 mb-2">${new Date(note.created_at).toLocaleString('ru-RU')}</div>
           ${note.photo_url ? `<img src="${note.photo_url}" class="rounded-lg mb-3 max-h-80 w-full object-cover">` : ''}
           <p class="text-slate-200 text-sm whitespace-pre-line">${note.text || ''}</p>
@@ -69,7 +73,7 @@
       `).join('');
     }
 
-    init();
+    loadNotes();
   </script>
 </body>
 </html>
