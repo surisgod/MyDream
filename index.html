@@ -6,7 +6,6 @@
   <title>Мой Дневник</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
@@ -17,7 +16,12 @@
     </header>
 
     <main id="notesContainer" class="space-y-4">
-      <p class="text-slate-500 text-center py-10">Проверка доступа...</p>
+      <div id="loginContainer" class="text-center py-16 space-y-4">
+        <h2 class="text-lg font-medium text-slate-300">Для доступа к дневнику необходима авторизация</h2>
+        <p class="text-xs text-slate-500">Нажмите кнопку ниже, чтобы войти через свой аккаунт Telegram:</p>
+        <!-- Сюда Telegram автоматически вставит кнопку входа -->
+        <div id="telegramLoginButton" class="flex justify-center pt-2"></div>
+      </div>
     </main>
   </div>
 
@@ -25,37 +29,72 @@
     const SUPABASE_URL = 'https://oblwxfefeltikdkmodon.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_bhvGHwhyHMBsG7amxcEw0g_fkWowvv6';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const MY_TELEGRAM_ID = 8499249541;
 
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
+    // ВАШ TELEGRAM ID для проверки
+    const MY_TELEGRAM_ID = 8499249541; 
+    const BOT_USERNAME = 'OmoriDiarybot'; // <-- Вставьте сюда юзернейм вашего бота (без @)
 
-    async function loadNotes() {
+    // Проверяем, залогинен ли пользователь уже (храним сессию в браузере)
+    const savedUser = JSON.parse(localStorage.getItem('tg_user') || 'null');
+
+    if (savedUser) {
+      checkAccessAndLoadNotes(savedUser);
+    } else {
+      renderLoginButton();
+    }
+
+    // Рисуем официальную кнопку Telegram Login
+    function renderLoginButton() {
+      const container = document.getElementById('telegramLoginButton');
+      container.innerHTML = ''; // очищаем на всякий случай
+
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = "https://telegram.org/js/telegram-widget.js?22";
+      script.setAttribute('data-telegram-login', BOT_USERNAME);
+      script.setAttribute('data-size', 'large');
+      script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+      script.setAttribute('data-request-access', 'write');
+
+      container.appendChild(script);
+    }
+
+    // Эта функция срабатывает автоматически, когда вы успешно авторизуетесь через кнопку
+    window.onTelegramAuth = function(user) {
+      localStorage.setItem('tg_user', JSON.stringify(user));
+      checkAccessAndLoadNotes(user);
+    };
+
+    async function checkAccessAndLoadNotes(user) {
       const container = document.getElementById('notesContainer');
-      const user = tg.initDataUnsafe?.user;
 
-      // Проверка: если открыли не из Telegram или не вы — блокируем доступ
-      if (!user || user.id !== MY_TELEGRAM_ID) {
+      // Проверка: тот ли это ID
+      if (user.id !== MY_TELEGRAM_ID) {
         container.innerHTML = `
           <div class="bg-red-950/30 border border-red-800 rounded-xl p-6 text-center">
             <h2 class="text-red-400 font-bold text-lg mb-2">⛔ Доступ запрещен</h2>
-            <p class="text-slate-400 text-sm">Этот дневник приватный и доступен только владельцу.</p>
+            <p class="text-slate-400 text-sm">Этот дневник принадлежит другому пользователю.</p>
+            <button onclick="localStorage.removeItem('tg_user'); location.reload();" class="mt-4 px-4 py-2 bg-slate-800 text-xs rounded-lg hover:bg-slate-700">Войти под другим аккаунтом</button>
           </div>
         `;
         return;
       }
 
-      document.getElementById('userInfo').innerText = `👤 ${user.first_name || 'Владелец'}`;
+      document.getElementById('userInfo').innerHTML = `
+        👤 ${user.first_name || 'Владелец'} 
+        <button onclick="localStorage.removeItem('tg_user'); location.reload();" class="ml-3 text-red-400 hover:underline">Выйти</button>
+      `;
 
-      // Загружаем все записи из таблицы notes
+      container.innerHTML = '<p class="text-slate-500 text-center py-10">Загрузка записей...</p>';
+
+      // Загрузка записей из Supabase
       const { data, error } = await supabaseClient
         .from('notes')
         .select('*')
         .order('id', { ascending: false });
 
       if (error) {
-        container.innerHTML = '<p class="text-red-400 text-center py-10">Ошибка загрузки данных.</p>';
+        container.innerHTML = '<p class="text-red-400 text-center py-10">Ошибка загрузки данных из базы.</p>';
         return;
       }
 
@@ -72,8 +111,6 @@
         </article>
       `).join('');
     }
-
-    loadNotes();
   </script>
 </body>
 </html>
