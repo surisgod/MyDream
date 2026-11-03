@@ -3,108 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Мой Личный Дневник</title>
-  <!-- Tailwind CSS -->
+  <title>Мой Дневник</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Официальная библиотека Supabase для JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-indigo-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen">
 
-  <div class="max-w-3xl mx-auto px-4 py-8 md:py-12">
-    
-    <!-- Шапка -->
-    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-slate-800">
-      <div>
-        <h1 class="text-2xl md:text-3xl font-extrabold text-indigo-400 tracking-tight">📖 Мой дневник</h1>
-        <p class="text-slate-400 text-sm mt-1">Мысли, заметки и моменты из Telegram</p>
-      </div>
-      <!-- Поиск -->
-      <input type="text" id="searchInput" placeholder="Поиск по записям..." 
-             class="w-full sm:w-64 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-sm transition">
+  <div class="max-w-3xl mx-auto px-4 py-8">
+    <header class="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
+      <h1 class="text-xl font-bold text-indigo-400">📖 Мой дневник</h1>
+      <span id="userInfo" class="text-xs text-slate-400"></span>
     </header>
 
-    <!-- Лента записей -->
-    <main id="notesContainer" class="space-y-6">
-      <p class="text-slate-500 text-center py-10">Загрузка записей из базы данных...</p>
+    <main id="notesContainer" class="space-y-4">
+      <p class="text-slate-500 text-center py-10">Проверка доступа...</p>
     </main>
-
   </div>
 
   <script>
-    // 1. Вставьте сюда ваши данные из Supabase
     const SUPABASE_URL = 'https://oblwxfefeltikdkmodon.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_bhvGHwhyHMBsG7amxcEw0g_fkWowvv6'; // Тот самый ключ с префиксом sb_publishable_...
-
+    const SUPABASE_ANON_KEY = 'sb_publishable_bhvGHwhyHMBsG7amxcEw0g_fkWowvv6';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let allNotes = [];
+    // Инициализация Telegram WebApp
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand(); // Разворачиваем на весь экран
 
-    // 2. Функция загрузки записей из таблицы notes
-    async function fetchNotes() {
+    const user = tg.initDataUnsafe?.user;
+
+    // ВАШ TELEGRAM ID (узнать можно у бота @userinfobot)
+    const MY_TELEGRAM_ID = 123456789; // <-- ВСТАВЬТЕ СВОЙ TELEGRAM ID
+
+    async function init() {
+      const container = document.getElementById('notesContainer');
+
+      // Проверка авторизации через Telegram
+      if (!user || user.id !== MY_TELEGRAM_ID) {
+        container.innerHTML = '<p class="text-red-400 text-center py-10">⛔ Доступ запрещен. Этот дневник приватный.</p>';
+        return;
+      }
+
+      document.getElementById('userInfo').innerText = `👤 ${user.first_name}`;
+
+      // Загрузка только ваших записей
       const { data, error } = await supabaseClient
         .from('notes')
         .select('*')
-        .order('created_at', { ascending: false }); // Сначала новые
+        .eq('telegram_id', user.id)
+        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Ошибка загрузки:', error);
-        document.getElementById('notesContainer').innerHTML = '<p class="text-red-400 text-center">Не удалось загрузить записи.</p>';
+      if (error || !data.length) {
+        container.innerHTML = '<p class="text-slate-500 text-center py-10">Записей пока нет.</p>';
         return;
       }
 
-      allNotes = data;
-      renderNotes(allNotes);
+      container.innerHTML = data.map(note => `
+        <article class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-500 mb-2">${new Date(note.created_at).toLocaleString('ru-RU')}</div>
+          ${note.photo_url ? `<img src="${note.photo_url}" class="rounded-lg mb-3 max-h-80 w-full object-cover">` : ''}
+          <p class="text-slate-200 text-sm whitespace-pre-line">${note.text || ''}</p>
+        </article>
+      `).join('');
     }
 
-    // 3. Функция отрисовки карточек на странице
-    function renderNotes(notes) {
-      const container = document.getElementById('notesContainer');
-      
-      if (notes.length === 0) {
-        container.html = '<p class="text-slate-500 text-center py-10">Тут пока пусто. Напишите что-нибудь боту в Telegram! ✨</p>';
-        return;
-      }
-
-      container.innerHTML = notes.map(note => {
-        // Красивое форматирование даты
-        const dateStr = new Date(note.created_at).toLocaleString('ru-RU', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-
-        // Блок для картинки, если она есть
-        const photoHtml = note.photo_url 
-          ? `<div class="mb-4 overflow-hidden rounded-xl border border-slate-800"><img src="${note.photo_url}" class="w-full object-cover max-h-96 hover:scale-105 transition duration-300" loading="lazy"></div>` 
-          : '';
-
-        return `
-          <article class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 md:p-6 shadow-sm hover:border-slate-700 transition">
-            <div class="flex justify-between items-center text-xs text-slate-500 mb-3">
-              <span>📅 ${dateStr}</span>
-            </div>
-            ${photoHtml}
-            <p class="text-slate-200 text-sm md:text-base leading-relaxed whitespace-pre-line">${note.text || ''}</p>
-          </article>
-        `;
-      }).join('');
-    }
-
-    // 4. Живой поиск по записям
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase();
-      const filtered = allNotes.filter(note => 
-        (note.text && note.text.toLowerCase().includes(query))
-      );
-      renderNotes(filtered);
-    });
-
-    // Запускаем загрузку при открытии страницы
-    fetchNotes();
+    init();
   </script>
-
 </body>
 </html>
