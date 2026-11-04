@@ -6,6 +6,8 @@
   <title>Мой Дневник</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
@@ -16,12 +18,7 @@
     </header>
 
     <main id="notesContainer" class="space-y-4">
-      <div id="loginContainer" class="text-center py-16 space-y-4">
-        <h2 class="text-lg font-medium text-slate-300">Для доступа к дневнику необходима авторизация</h2>
-        <p class="text-xs text-slate-500">Нажмите кнопку ниже, чтобы войти через свой аккаунт Telegram:</p>
-        <!-- Сюда Telegram автоматически вставит кнопку входа -->
-        <div id="telegramLoginButton" class="flex justify-center pt-2"></div>
-      </div>
+      <p class="text-slate-500 text-center py-10">Проверка доступа...</p>
     </main>
   </div>
 
@@ -30,24 +27,42 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_bhvGHwhyHMBsG7amxcEw0g_fkWowvv6';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // ВАШ TELEGRAM ID для проверки
+    // ВАШ TELEGRAM ID
     const MY_TELEGRAM_ID = 8499249541; 
-    const BOT_USERNAME = 'OmoriDiarybot'; // <-- Вставьте сюда юзернейм вашего бота (без @)
+    const BOT_USERNAME = 'OmoriDiarybot'; // Юзернейм вашего бота
 
-    // Проверяем, залогинен ли пользователь уже (храним сессию в браузере)
-    const savedUser = JSON.parse(localStorage.getItem('tg_user') || 'null');
+    // 1. Проверяем, открыто ли приложение прямо внутри Telegram
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
 
-    if (savedUser) {
-      checkAccessAndLoadNotes(savedUser);
+    const tgUser = tg.initDataUnsafe?.user;
+
+    if (tgUser && tgUser.id) {
+      // Если открыто из Telegram — авторизуем автоматически без всяких кнопок!
+      checkAccessAndLoadNotes(tgUser);
     } else {
-      renderLoginButton();
+      // Если открыто в обычном браузере — проверяем сохраненную сессию или показываем кнопку входа
+      const savedUser = JSON.parse(localStorage.getItem('tg_user') || 'null');
+      if (savedUser) {
+        checkAccessAndLoadNotes(savedUser);
+      } else {
+        renderLoginScreen();
+      }
     }
 
-    // Рисуем официальную кнопку Telegram Login
-    function renderLoginButton() {
-      const container = document.getElementById('telegramLoginButton');
-      container.innerHTML = ''; // очищаем на всякий случай
+    // Экран входа для обычного браузера на ПК
+    function renderLoginScreen() {
+      const container = document.getElementById('notesContainer');
+      container.innerHTML = `
+        <div id="loginContainer" class="text-center py-16 space-y-4">
+          <h2 class="text-lg font-medium text-slate-300">Для доступа к дневнику необходима авторизация</h2>
+          <p class="text-xs text-slate-500">Нажмите кнопку ниже, чтобы войти через свой аккаунт Telegram:</p>
+          <div id="telegramLoginButton" class="flex justify-center pt-2"></div>
+        </div>
+      `;
 
+      const loginButtonContainer = document.getElementById('telegramLoginButton');
       const script = document.createElement('script');
       script.async = true;
       script.src = "https://telegram.org/js/telegram-widget.js?22";
@@ -56,10 +71,10 @@
       script.setAttribute('data-onauth', 'onTelegramAuth(user)');
       script.setAttribute('data-request-access', 'write');
 
-      container.appendChild(script);
+      loginButtonContainer.appendChild(script);
     }
 
-    // Эта функция срабатывает автоматически, когда вы успешно авторизуетесь через кнопку
+    // Срабатывает при входе через виджет в браузере
     window.onTelegramAuth = function(user) {
       localStorage.setItem('tg_user', JSON.stringify(user));
       checkAccessAndLoadNotes(user);
@@ -68,7 +83,7 @@
     async function checkAccessAndLoadNotes(user) {
       const container = document.getElementById('notesContainer');
 
-      // Проверка: тот ли это ID
+      // Проверка владельца
       if (user.id !== MY_TELEGRAM_ID) {
         container.innerHTML = `
           <div class="bg-red-950/30 border border-red-800 rounded-xl p-6 text-center">
@@ -80,14 +95,13 @@
         return;
       }
 
-      document.getElementById('userInfo').innerHTML = `
-        👤 ${user.first_name || 'Владелец'} 
-        <button onclick="localStorage.removeItem('tg_user'); location.reload();" class="ml-3 text-red-400 hover:underline">Выйти</button>
-      `;
+      // Выводим имя и кнопку выхода (если зашли с ПК)
+      const logoutBtn = !tg.initDataUnsafe?.user ? `<button onclick="localStorage.removeItem('tg_user'); location.reload();" class="ml-3 text-red-400 hover:underline">Выйти</button>` : '';
+      document.getElementById('userInfo').innerHTML = `👤 ${user.first_name || 'Владелец'} ${logoutBtn}`;
 
       container.innerHTML = '<p class="text-slate-500 text-center py-10">Загрузка записей...</p>';
 
-      // Загрузка записей из Supabase
+      // Загружаем записи из Supabase
       const { data, error } = await supabaseClient
         .from('notes')
         .select('*')
