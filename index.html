@@ -14,11 +14,11 @@
   <header class="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4">
     <div class="max-w-3xl mx-auto px-4 space-y-3">
       <div class="flex justify-between items-center">
-        <h1 class="text-xl font-bold text-indigo-400">📖 Мой дневник</h1>
+        <h1 class="text-xl font-bold text-purple-400">📖 Мой дневник</h1>
         <div class="flex items-center space-x-3">
           <span id="userInfo" class="text-xs text-slate-400"></span>
           <!-- Кнопка добавления новой записи -->
-          <button onclick="openCreateModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-3 py-1.5 rounded-xl transition flex items-center space-x-1 shadow-lg">
+          <button onclick="openCreateModal()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium px-3 py-1.5 rounded-xl transition flex items-center space-x-1 shadow-lg">
             <span>+ Новая запись</span>
           </button>
         </div>
@@ -26,12 +26,12 @@
 
       <!-- Поиск -->
       <div class="flex gap-2">
-        <input type="text" id="searchInput" placeholder="Поиск по записям..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        <input type="text" id="searchInput" placeholder="Поиск по записям..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500">
       </div>
 
       <!-- Панель тегов -->
       <div id="tagsContainer" class="flex gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
-        <button onclick="filterByTag(null)" class="tag-btn bg-indigo-600 text-white px-3 py-1 rounded-full shrink-0 font-medium transition">Все</button>
+        <button onclick="filterByTag(null)" class="tag-btn bg-purple-600 text-white px-3 py-1 rounded-full shrink-0 font-medium transition">Все</button>
       </div>
     </div>
   </header>
@@ -46,16 +46,16 @@
   <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center">
-        <h3 id="modalTitle" class="font-bold text-indigo-400">Редактирование заметки</h3>
+        <h3 id="modalTitle" class="font-bold text-purple-400">Редактирование заметки</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-white">✕</button>
       </div>
       <div id="modalImageContainer"></div>
-      <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"></textarea>
+      <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500"></textarea>
       <div class="flex justify-between">
         <button id="deleteBtn" onclick="deleteCurrentNote()" class="px-4 py-2 bg-red-950/40 text-red-400 border border-red-900/50 rounded-xl text-xs hover:bg-red-900/40">Удалить</button>
         <div class="space-x-2">
           <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 text-xs rounded-xl hover:bg-slate-700">Отмена</button>
-          <button onclick="saveCurrentNote()" class="px-4 py-2 bg-indigo-600 text-xs rounded-xl hover:bg-indigo-500 font-medium">Сохранить</button>
+          <button onclick="saveCurrentNote()" class="px-4 py-2 bg-purple-600 text-xs rounded-xl hover:bg-purple-500 font-medium">Сохранить</button>
         </div>
       </div>
     </div>
@@ -74,7 +74,7 @@
     tg.expand();
 
     let allNotes = [];
-    let currentEditingId = null; // null означает, что мы создаем новую запись
+    let currentEditingId = null;
     let selectedTag = null;
     let searchQuery = '';
     let openDays = {};
@@ -144,7 +144,6 @@
       }
       allNotes = data || [];
       
-      // ИЗМЕНЕНИЕ: По умолчанию ВСЕ дни свернуты (false) для быстрого скролла
       const groups = groupByDate(allNotes);
       Object.keys(groups).forEach(date => {
         if (openDays[date] === undefined) {
@@ -180,11 +179,11 @@
       const tagsContainer = document.getElementById('tagsContainer');
       const tags = getAllTags();
 
-      let html = `<button onclick="filterByTag(null)" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${selectedTag === null ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'}">Все</button>`;
+      let html = `<button onclick="filterByTag(null)" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${selectedTag === null ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'}">Все</button>`;
       
       tags.forEach(tag => {
         const isActive = selectedTag === tag;
-        html += `<button onclick="filterByTag('${tag}')" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${isActive ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'}">${tag}</button>`;
+        html += `<button onclick="filterByTag('${tag}')" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${isActive ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'}">${tag}</button>`;
       });
 
       tagsContainer.innerHTML = html;
@@ -226,7 +225,7 @@
           <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden transition">
             <button onclick="toggleDay('${date}')" class="w-full px-5 py-3 flex items-center justify-between bg-slate-900 hover:bg-slate-800/60 transition text-left">
               <div class="flex items-center space-x-3">
-                <span class="text-xs text-indigo-400 font-semibold uppercase tracking-wider">${date}</span>
+                <span class="text-xs text-purple-400 font-semibold uppercase tracking-wider">${date}</span>
                 <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">${count} ${count === 1 ? 'запись' : count < 5 ? 'записи' : 'записей'}</span>
               </div>
               <span class="text-slate-400 text-sm transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}">▼</span>
@@ -241,7 +240,7 @@
                 return `
                   <div onclick="openEditModal(${note.id})" class="px-5 py-3.5 flex items-center justify-between hover:bg-slate-800/40 cursor-pointer transition">
                     <div class="flex items-center space-x-3 overflow-hidden">
-                      ${note.photo_url ? '<span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded shrink-0">📷 фото</span>' : ''}
+                      ${note.photo_url ? '<span class="text-[10px] bg-purple-950 text-purple-300 px-2 py-0.5 rounded shrink-0">📷 фото</span>' : ''}
                       <p class="text-sm text-slate-200 truncate font-medium">${shortTitle}</p>
                     </div>
                     <span class="text-xs text-slate-500 shrink-0 ml-4">${time}</span>
@@ -254,18 +253,16 @@
       }).join('');
     }
 
-    // Открыть модальное окно для СОЗДАНИЯ новой записи
     function openCreateModal() {
       currentEditingId = null;
       document.getElementById('modalTitle').innerText = 'Новая запись';
       document.getElementById('modalText').value = '';
       document.getElementById('modalImageContainer').innerHTML = '';
-      document.getElementById('deleteBtn').classList.add('hidden'); // Скрываем кнопку удаления при создании
+      document.getElementById('deleteBtn').classList.add('hidden');
       document.getElementById('editModal').classList.remove('hidden');
       document.getElementById('editModal').classList.add('flex');
     }
 
-    // Открыть модальное окно для РЕДАКТИРОВАНИЯ существующей записи
     function openEditModal(id) {
       currentEditingId = id;
       const note = allNotes.find(n => n.id === id);
@@ -276,7 +273,7 @@
       document.getElementById('modalImageContainer').innerHTML = note.photo_url 
         ? `<img src="${note.photo_url}" class="rounded-xl max-h-48 w-full object-cover mb-3">` 
         : '';
-      document.getElementById('deleteBtn').classList.remove('hidden'); // Показываем кнопку удаления
+      document.getElementById('deleteBtn').classList.remove('hidden');
       document.getElementById('editModal').classList.remove('hidden');
       document.getElementById('editModal').classList.add('flex');
     }
@@ -287,7 +284,6 @@
       currentEditingId = null;
     }
 
-    // Сохранение (обновление существующей ИЛИ создание новой записи)
     async function saveCurrentNote() {
       const text = document.getElementById('modalText').value.trim();
       if (!text) {
@@ -296,14 +292,12 @@
       }
 
       if (currentEditingId === null) {
-        // РЕЖИМ СОЗДАНИЯ НОВОЙ ЗАПИСИ (отправляем только текст, без лишних id)
         const { error } = await supabaseClient
           .from('notes')
           .insert([{ text: text }]);
 
         if (!error) {
           closeModal();
-          // Автоматически открываем сегодняшний день при создании новой записи
           const todayStr = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
           openDays[todayStr] = true;
           await fetchNotes();
@@ -312,7 +306,6 @@
           console.error(error);
         }
       } else {
-        // РЕЖИМ РЕДАКТИРОВАНИЯ
         const { error } = await supabaseClient
           .from('notes')
           .update({ text: text })
