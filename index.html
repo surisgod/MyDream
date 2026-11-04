@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    /* Плавное скрытие верхней части (заголовок + вкладки) */
+    /* Плавное скрытие верхней части (заголовок + вкладки) с подъемом */
     .header-top-hidden {
       transform: translateY(-100%);
       max-height: 0;
@@ -19,7 +19,6 @@
       padding: 0;
       pointer-events: none;
     }
-    
 
     .custom-scrollbar::-webkit-scrollbar { height: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
@@ -60,7 +59,7 @@
           </div>
         </div>
 
-        <!-- Переключатель вкладок: Лента / Календарь теперь уходит наверх -->
+        <!-- Переключатель вкладок: Лента / Календарь уходит наверх -->
         <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
           <button id="tabFeedBtn" onclick="switchTab('feed')" class="flex-1 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white transition">Лента записей</button>
           <button id="tabCalBtn" onclick="switchTab('calendar')" class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition">Календарь и Статистика</button>
@@ -746,6 +745,7 @@
       }
     }
 
+    // ЛОГИКА СКРЫТИЯ ВЕРХНЕЙ ЧАСТИ ПРИ СКРОЛЛЕ
     let lastScrollTop = 0;
     const headerTop = document.getElementById('headerTop');
     const scrollThreshold = 40;
@@ -753,11 +753,11 @@
     window.addEventListener('scroll', function() {
         let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
-        // Прячем заголовок и вкладки при прокрутке вниз
         if (scrollTop > lastScrollTop && scrollTop > scrollThreshold) {
+            // При скролле вниз — скрываем заголовок и вкладки
             headerTop.classList.add('header-top-hidden');
         } else {
-            // Возвращаем при прокрутке наверх
+            // При скролле наверх — возвращаем обратно
             headerTop.classList.remove('header-top-hidden');
         }
         
