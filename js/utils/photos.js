@@ -1,6 +1,3 @@
-// В колонке photo_url хранится либо одна ссылка (старые записи и бот),
-// либо JSON-массив [{url, size}] (несколько фото).
-
 export function parsePhotos(raw) {
   if (!raw) return [];
   const str = String(raw).trim();

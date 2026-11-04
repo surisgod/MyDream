@@ -1,5 +1,3 @@
-// Единое изменяемое состояние приложения.
-// Модули импортируют `state` и читают/пишут его поля напрямую.
 export const state = {
   allNotes: [],
   currentEditingId: null,
@@ -8,8 +6,8 @@ export const state = {
   openDays: {},
   currentTab: 'feed',
   currentCalSubTab: 'calendar',
-  selectedEmoji: null,   // по умолчанию без эмодзи
-  currentPhotos: [],     // [{url, size}] — фото редактируемой записи
+  selectedEmoji: null,
+  currentPhotos: [],
   isUploading: false,
   calCurrentDate: new Date(),
 };
