@@ -28,8 +28,11 @@ RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
 OWNER_ID = int(os.getenv("OWNER_ID", "8499249541"))
 
 # --- Авторизация сайта ---
-# Приватный ключ ES256 в формате JWK (вывод `npx supabase gen signing-key --algorithm ES256`),
-# тот же ключ импортирован в Supabase → Settings → JWT Keys.
+# Способ 1 (проще): Legacy JWT Secret из Supabase → Project Settings → JWT Keys → Legacy JWT Secret.
+# Токены подписываются HS256. Секрет хранить ТОЛЬКО на сервере: с ним можно выпустить любой токен.
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+# Способ 2: приватный ключ ES256 в формате JWK (`npx supabase gen signing-key --algorithm ES256`),
+# импортированный в Supabase → JWT Keys. Используется, если SUPABASE_JWT_SECRET не задан.
 SUPABASE_JWT_PRIVATE_JWK = os.getenv("SUPABASE_JWT_PRIVATE_JWK")
 # Адреса сайта через запятую, которым разрешено обращаться к /auth/telegram
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
@@ -141,13 +144,15 @@ def mint_supabase_jwt(user_id: int) -> str:
         "iat": now,
         "exp": now + TOKEN_TTL,
     }
+    if SUPABASE_JWT_SECRET:
+        return jwt.encode(payload, SUPABASE_JWT_SECRET, algorithm="HS256")
     return jwt.encode(payload, _private_key, algorithm="ES256", headers={"kid": _jwk["kid"]})
 
 
 @app.post("/auth/telegram")
 async def auth_telegram(body: AuthRequest):
-    if _private_key is None:
-        raise HTTPException(status_code=500, detail="SUPABASE_JWT_PRIVATE_JWK не задан")
+    if not SUPABASE_JWT_SECRET and _private_key is None:
+        raise HTTPException(status_code=500, detail="Не задан SUPABASE_JWT_SECRET (или SUPABASE_JWT_PRIVATE_JWK)")
 
     if body.init_data:
         user = verify_init_data(body.init_data)
