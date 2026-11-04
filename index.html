@@ -23,16 +23,15 @@
         <input type="text" id="searchInput" placeholder="Поиск по записям..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
       </div>
 
-      <!-- Панель тегов (генерируются автоматически из текста) -->
+      <!-- Панель тегов -->
       <div id="tagsContainer" class="flex gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
         <button onclick="filterByTag(null)" class="tag-btn bg-indigo-600 text-white px-3 py-1 rounded-full shrink-0 font-medium transition">Все</button>
-        <!-- Теги подгрузятся сюда сами -->
       </div>
     </div>
   </header>
 
   <div class="max-w-3xl mx-auto px-4 py-6">
-    <main id="notesContainer" class="space-y-6">
+    <main id="notesContainer" class="space-y-4">
       <p class="text-slate-500 text-center py-10">Загрузка записей...</p>
     </main>
   </div>
@@ -72,8 +71,10 @@
     let currentEditingId = null;
     let selectedTag = null;
     let searchQuery = '';
+    
+    // Храним состояние открытых/закрытых дней (ключ — дата, значение — true/false)
+    let openDays = {};
 
-    // Авторизация
     const tgUser = tg.initDataUnsafe?.user;
     if (tgUser && tgUser.id) {
       initApp(tgUser);
@@ -120,6 +121,10 @@
 
       document.getElementById('searchInput').addEventListener('input', (e) => {
         searchQuery = e.target.value.toLowerCase();
+        // При поиске автоматически открываем все дни, чтобы найти совпадения
+        if (searchQuery) {
+          Object.keys(openDays).forEach(d => openDays[d] = true);
+        }
         renderNotes();
       });
     }
@@ -135,19 +140,34 @@
         return;
       }
       allNotes = data || [];
+      
+      // По умолчанию открываем самый первый (самый свежий) день, остальные закрываем
+      const groups = groupByDate(allNotes);
+      const dates = Object.keys(groups);
+      dates.forEach((date, index) => {
+        openDays[date] = index === 0; // Первый день открыт, остальные свернуты
+      });
+
       renderTags();
       renderNotes();
     }
 
-    // Автоматический сбор всех тегов из текста записей (например, слов начинающихся с #)
+    function groupByDate(notesList) {
+      const groups = {};
+      notesList.forEach(note => {
+        const dateStr = new Date(note.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+        if (!groups[dateStr]) groups[dateStr] = [];
+        groups[dateStr].push(note);
+      });
+      return groups;
+    }
+
     function getAllTags() {
       const tagsSet = new Set();
       allNotes.forEach(note => {
         const text = note.text || '';
         const matches = text.match(/#[\wа-яё]+/gi);
-        if (matches) {
-          matches.forEach(tag => tagsSet.add(tag));
-        }
+        if (matches) matches.forEach(tag => tagsSet.add(tag));
       });
       return Array.from(tagsSet);
     }
@@ -172,10 +192,15 @@
       renderNotes();
     }
 
+    // Переключение состояния дня (свернуть/развернуть)
+    function toggleDay(dateStr) {
+      openDays[dateStr] = !openDays[dateStr];
+      renderNotes();
+    }
+
     function renderNotes() {
       const container = document.getElementById('notesContainer');
 
-      // Фильтрация по поиску и выбранному тегу
       const filtered = allNotes.filter(note => {
         const text = (note.text || '').toLowerCase();
         const matchesSearch = text.includes(searchQuery);
@@ -188,36 +213,44 @@
         return;
       }
 
-      // Группировка по дням
-      const groups = {};
-      filtered.forEach(note => {
-        const dateStr = new Date(note.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-        if (!groups[dateStr]) groups[dateStr] = [];
-        groups[dateStr].push(note);
-      });
+      const groups = groupByDate(filtered);
 
-      container.innerHTML = Object.keys(groups).map(date => `
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider px-1">${date}</h3>
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl divide-y divide-slate-800/60 overflow-hidden shadow-sm">
-            ${groups[date].map(note => {
-              const fullText = note.text || 'Без текста';
-              const shortTitle = fullText.split('\n')[0].slice(0, 60) + (fullText.length > 60 ? '...' : '');
-              const time = new Date(note.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      container.innerHTML = Object.keys(groups).map(date => {
+        const isOpen = openDays[date] || false;
+        const count = groups[date].length;
 
-              return `
-                <div onclick="openModal(${note.id})" class="p-4 flex items-center justify-between hover:bg-slate-800/40 cursor-pointer transition">
-                  <div class="flex items-center space-x-3 overflow-hidden">
-                    ${note.photo_url ? '<span class="text-xs bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded shrink-0">📷 фото</span>' : ''}
-                    <p class="text-sm text-slate-200 truncate font-medium">${shortTitle}</p>
+        return `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden transition">
+            <!-- Шапка дня (кнопка-аккордеон) -->
+            <button onclick="toggleDay('${date}')" class="w-full px-5 py-3 flex items-center justify-between bg-slate-900 hover:bg-slate-800/60 transition text-left">
+              <div class="flex items-center space-x-3">
+                <span class="text-xs text-indigo-400 font-semibold uppercase tracking-wider">${date}</span>
+                <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">${count} ${count === 1 ? 'запись' : count < 5 ? 'записи' : 'записей'}</span>
+              </div>
+              <span class="text-slate-400 text-sm transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}">▼</span>
+            </button>
+
+            <!-- Список записей внутри дня (показывается только если день открыт) -->
+            <div class="${isOpen ? 'block' : 'hidden'} divide-y divide-slate-800/60 border-t border-slate-800/60">
+              ${groups[date].map(note => {
+                const fullText = note.text || 'Без текста';
+                const shortTitle = fullText.split('\n')[0].slice(0, 60) + (fullText.length > 60 ? '...' : '');
+                const time = new Date(note.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                  <div onclick="openModal(${note.id})" class="px-5 py-3.5 flex items-center justify-between hover:bg-slate-800/40 cursor-pointer transition">
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                      ${note.photo_url ? '<span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded shrink-0">📷 фото</span>' : ''}
+                      <p class="text-sm text-slate-200 truncate font-medium">${shortTitle}</p>
+                    </div>
+                    <span class="text-xs text-slate-500 shrink-0 ml-4">${time}</span>
                   </div>
-                  <span class="text-xs text-slate-500 shrink-0 ml-4">${time}</span>
-                </div>
-              `;
-            }).join('')}
+                `;
+              }).join('')}
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     // Модальное окно
