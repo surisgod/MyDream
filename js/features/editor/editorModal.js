@@ -79,7 +79,7 @@ export async function saveCurrentNote() {
   };
 
   if (state.currentEditingId === null) {
-    const { error } = await insertNote(fields);
+    const { error } = await insertNote(state.user.id, fields);
     if (!error) {
       clearDraft();
       closeModal();
@@ -90,7 +90,7 @@ export async function saveCurrentNote() {
       console.error(error);
     }
   } else {
-    const { error } = await updateNote(state.currentEditingId, fields);
+    const { error } = await updateNote(state.user.id, state.currentEditingId, fields);
     if (!error) {
       closeModal();
       await loadNotes();
@@ -103,7 +103,7 @@ export async function saveCurrentNote() {
 export async function deleteCurrentNote() {
   if (!confirm('⚠️ Внимание! Запись будет удалена безвозвратно. Вы абсолютно уверены?')) return;
 
-  const { error } = await deleteNote(state.currentEditingId);
+  const { error } = await deleteNote(state.user.id, state.currentEditingId);
   if (!error) {
     closeModal();
     await loadNotes();

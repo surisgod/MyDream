@@ -1,4 +1,4 @@
-import { MY_TELEGRAM_ID, BOT_USERNAME } from '../config.js';
+import { BOT_USERNAME } from '../config.js';
 import { getTelegramUser } from './telegram.js';
 import { getSavedUser, saveUser } from './localStore.js';
 
@@ -13,7 +13,6 @@ export function resolveCurrentUser() {
   return getSavedUser();
 }
 
-export const isOwner = (user) => user.id === MY_TELEGRAM_ID;
 
 export function renderLoginScreen() {
   document.querySelector('header').style.display = 'none';

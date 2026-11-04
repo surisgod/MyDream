@@ -1,4 +1,5 @@
 export const state = {
+  user: null,            // пользователь Telegram: { id, first_name, ... }
   allNotes: [],
   currentEditingId: null,
   selectedTag: null,

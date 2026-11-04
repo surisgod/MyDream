@@ -1,5 +1,6 @@
+import { state } from './state.js';
 import { registerActions, initActionDelegation } from './core/actions.js';
-import { resolveCurrentUser, isOwner, renderLoginScreen } from './services/auth.js';
+import { resolveCurrentUser, renderLoginScreen } from './services/auth.js';
 
 import { initStickyHeader } from './ui/stickyHeader.js';
 import { loadNotes } from './features/notes/notesController.js';
@@ -31,17 +32,8 @@ registerActions({
   ...viewerActions,
 });
 
-function showAccessDenied() {
-  document.querySelector('header').style.display = 'none';
-  document.getElementById('notesContainer').innerHTML = `<p class="text-red-400 text-center py-10">⛔ Доступ запрещен</p>`;
-}
-
 async function startApp(user) {
-  if (!isOwner(user)) {
-    showAccessDenied();
-    return;
-  }
-
+  state.user = user;
   document.getElementById('userInfo').innerHTML = `👤 ${user.first_name || 'Владелец'}`;
 
   initSearch();

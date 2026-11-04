@@ -22,7 +22,7 @@ export async function toggleFavorite(id) {
   note.is_favorite = newValue;
   updateFavButtons(id);
 
-  const { error } = await updateNote(id, { is_favorite: newValue });
+  const { error } = await updateNote(state.user.id, id, { is_favorite: newValue });
 
   if (error) {
     console.error(error);

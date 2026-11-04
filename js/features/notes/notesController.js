@@ -9,7 +9,7 @@ import { renderStats } from '../calendar/stats.js';
 // Загружает записи и перерисовывает активный экран.
 // Новый раздел сайта, зависящий от списка записей, подключается здесь.
 export async function loadNotes() {
-  const { data, error } = await fetchNotes();
+  const { data, error } = await fetchNotes(state.user.id);
   if (error) {
     console.error(error);
     return;

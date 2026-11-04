@@ -75,7 +75,8 @@ async def start_cmd(message: types.Message):
 async def handle_text(message: types.Message):
     supabase.table("notes").insert({
         "text": message.text,
-        "photo_url": None
+        "photo_url": None,
+        "user_id": message.from_user.id  # владелец записи — аккаунт Telegram
     }).execute()
 
     await delete_user_message(message)
@@ -107,7 +108,8 @@ async def handle_photo(message: types.Message):
     caption = message.caption or ""
     supabase.table("notes").insert({
         "text": caption,
-        "photo_url": photo_url
+        "photo_url": photo_url,
+        "user_id": message.from_user.id  # владелец записи — аккаунт Telegram
     }).execute()
 
     await delete_user_message(message)
