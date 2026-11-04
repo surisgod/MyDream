@@ -48,3 +48,16 @@ js/
 3. В `features/navigation.js` добавить ветку для вкладки в `switchTab`.
 4. В `main.js` импортировать `actions` и добавить в `registerActions({...})`.
 5. Если раздел зависит от списка записей — вызвать его рендер в `notesController.js`.
+
+## Авторизация
+
+1. Сайт отправляет боту подписанные данные Telegram (`initData` мини-приложения
+   или данные Login Widget) на `POST {AUTH_API_URL}/auth/telegram`.
+2. Бот проверяет подпись по токену бота, сверяет `OWNER_ID` и выдаёт JWT (ES256)
+   с `sub = Telegram ID`.
+3. `services/session.js` держит токен в памяти и обновляет его, а клиент Supabase
+   подписывает им каждый запрос (`services/supabase.js`). Доступ к данным
+   ограничивают RLS-политики по `auth.jwt() ->> 'sub'`.
+
+Настройка: `AUTH_API_URL` в `js/config.js`; на Render — переменные
+`SUPABASE_JWT_PRIVATE_JWK` и `ALLOWED_ORIGINS`.

@@ -1,16 +1,19 @@
 import { BOT_USERNAME } from '../config.js';
-import { getTelegramUser } from './telegram.js';
+import { getTelegramUser, getInitData } from './telegram.js';
 import { getSavedUser, saveUser } from './localStore.js';
 
+// Возвращает { user, credentials } или null, если нужно показать экран входа.
+// credentials уходят на сервер, который проверяет подпись Telegram.
 export function resolveCurrentUser() {
   const tgUser = getTelegramUser();
   if (tgUser && tgUser.id) {
     if (window.location.search || window.location.hash.includes('tgWebAppData')) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    return tgUser;
+    return { user: tgUser, credentials: { init_data: getInitData() } };
   }
-  return getSavedUser();
+  const saved = getSavedUser();
+  return saved ? { user: saved, credentials: { widget: saved } } : null;
 }
 
 

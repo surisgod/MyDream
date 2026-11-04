@@ -1,6 +1,8 @@
 import { state } from './state.js';
 import { registerActions, initActionDelegation } from './core/actions.js';
 import { resolveCurrentUser, renderLoginScreen } from './services/auth.js';
+import { authenticate } from './services/session.js';
+import { clearUser } from './services/localStore.js';
 
 import { initStickyHeader } from './ui/stickyHeader.js';
 import { loadNotes } from './features/notes/notesController.js';
@@ -32,7 +34,29 @@ registerActions({
   ...viewerActions,
 });
 
-async function startApp(user) {
+function showAuthError(error, credentials) {
+  console.error(error);
+  // сохранённый вход устарел — просим войти заново
+  if (credentials.widget && error.status === 401) {
+    clearUser();
+    renderLoginScreen();
+    return;
+  }
+  const denied = error.status === 401 || error.status === 403;
+  document.querySelector('header').style.display = 'none';
+  document.getElementById('notesContainer').innerHTML = denied
+    ? `<p class="text-red-400 text-center py-10">⛔ Доступ запрещен</p>`
+    : `<p class="text-red-400 text-center py-10">Не удалось подключиться к серверу авторизации. Попробуйте позже.</p>`;
+}
+
+async function startApp({ user, credentials }) {
+  try {
+    await authenticate(credentials);
+  } catch (error) {
+    showAuthError(error, credentials);
+    return;
+  }
+
   state.user = user;
   document.getElementById('userInfo').innerHTML = `👤 ${user.first_name || 'Владелец'}`;
 
@@ -48,6 +72,6 @@ async function startApp(user) {
 initActionDelegation();
 initStickyHeader();
 
-const user = resolveCurrentUser();
-if (user) startApp(user);
+const session = resolveCurrentUser();
+if (session) startApp(session);
 else renderLoginScreen();

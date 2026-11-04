@@ -2,6 +2,9 @@
 export const SUPABASE_URL = 'https://oblwxfefeltikdkmodon.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_bhvGHwhyHMBsG7amxcEw0g_fkWowvv6';
 
+// Адрес бота на Render, где работает эндпоинт /auth/telegram
+export const AUTH_API_URL = 'https://YOUR-BOT.onrender.com';
+
 export const BOT_USERNAME = 'OmoriDiarybot';
 
 export const NOTES_TABLE = 'notes';
