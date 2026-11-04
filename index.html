@@ -9,11 +9,14 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
+    .header-hidden {
+    transform: translateY(-100%);
+    }
     .custom-scrollbar::-webkit-scrollbar { height: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
-    
+
     /* Тонкий скролл для текстового поля */
     #modalText::-webkit-scrollbar { width: 4px; }
     #modalText::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
@@ -33,7 +36,7 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
 
   <!-- Липкая шапка -->
-  <header class="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4">
+  <header id="mainHeader" class="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4 transition-transform duration-300 ease-in-out">
     <div class="max-w-3xl mx-auto px-4 space-y-3">
       <div class="flex justify-between items-center">
         <h1 class="text-xl font-bold text-purple-400">📖 Мой дневник</h1>
@@ -726,6 +729,24 @@
         alert('Ошибка при удалении');
       }
     }
+
+    let lastScrollTop = 0;
+    const header = document.getElementById('mainHeader');
+    const scrollThreshold = 40; // Чувствительность скролла (в пикселях)
+
+    window.addEventListener('scroll', function() {
+        let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+        // Если скроллим вниз и прошли порог — прячем шапку
+        if (scrollTop > lastScrollTop && scrollTop > scrollThreshold) {
+            header.classList.add('header-hidden');
+        } else {
+            // Если скроллим наверх — показываем шапку обратно
+            header.classList.remove('header-hidden');
+        }
+        
+        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+    });
   </script>
 </body>
 </html>
