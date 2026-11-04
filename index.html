@@ -9,12 +9,12 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    /* Плавное скрытие верхней части */
+    /* Плавное скрытие верхней части (заголовок + вкладки) */
     .header-top-hidden {
       transform: translateY(-100%);
       opacity: 0;
       pointer-events: none;
-      margin-bottom: -1rem; /* убираем лишний отступ при скрытии */
+      margin-bottom: -1rem;
     }
 
     .custom-scrollbar::-webkit-scrollbar { height: 4px; }
@@ -44,25 +44,27 @@
   <header class="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4">
     <div class="max-w-3xl mx-auto px-4 space-y-3">
       
-      <!-- ТОЛЬКО ЭТА ЧАСТЬ БУДЕТ ПРЯТАТЬСЯ -->
-      <div id="headerTop" class="flex justify-between items-center transition-all duration-300 ease-in-out">
-        <h1 class="text-xl font-bold text-purple-400">📖 Мой дневник</h1>
-        <div class="flex items-center space-x-3">
-          <span id="userInfo" class="text-xs text-slate-400"></span>
-          <button onclick="openCreateModal()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium px-3 py-1.5 rounded-xl transition flex items-center space-x-1 shadow-lg">
-            <span>+ Новая запись</span>
-          </button>
+      <!-- ЭТА ЧАСТЬ БУДЕТ ПРЯТАТЬСЯ (Заголовок + Переключатель вкладок) -->
+      <div id="headerTop" class="space-y-3 transition-all duration-300 ease-in-out">
+        <div class="flex justify-between items-center">
+          <h1 class="text-xl font-bold text-purple-400">📖 Мой дневник</h1>
+          <div class="flex items-center space-x-3">
+            <span id="userInfo" class="text-xs text-slate-400"></span>
+            <button onclick="openCreateModal()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium px-3 py-1.5 rounded-xl transition flex items-center space-x-1 shadow-lg">
+              <span>+ Новая запись</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- ЭТА ЧАСТЬ (вкладки, поиск, теги) ВСЕГДА ОСТАЕТСЯ НА ЭКРАНЕ -->
-      <div id="headerStickyBottom" class="space-y-3">
-        <!-- Переключатель вкладок: Лента / Календарь -->
+        <!-- Переключатель вкладок: Лента / Календарь теперь уходит наверх -->
         <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
           <button id="tabFeedBtn" onclick="switchTab('feed')" class="flex-1 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white transition">Лента записей</button>
           <button id="tabCalBtn" onclick="switchTab('calendar')" class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition">Календарь и Статистика</button>
         </div>
+      </div>
 
+      <!-- ЭТА ЧАСТЬ ВСЕГДА ОСТАЕТСЯ НА ЭКРАНЕ (Поиск и Теги) -->
+      <div id="headerStickyBottom" class="space-y-3 pt-1">
         <!-- Поиск -->
         <div id="searchWrapper" class="flex gap-2">
           <input type="text" id="searchInput" placeholder="Поиск по тексту, числу, месяцу или году..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500">
@@ -742,12 +744,12 @@
 
     let lastScrollTop = 0;
     const headerTop = document.getElementById('headerTop');
-    const scrollThreshold = 40; // Порог в пикселях
+    const scrollThreshold = 40;
 
     window.addEventListener('scroll', function() {
         let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
-        // Прячем только верхнюю часть при прокрутке вниз
+        // Прячем заголовок и вкладки при прокрутке вниз
         if (scrollTop > lastScrollTop && scrollTop > scrollThreshold) {
             headerTop.classList.add('header-top-hidden');
         } else {
