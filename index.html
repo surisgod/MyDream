@@ -15,6 +15,9 @@
       will-change: transform;
     }
 
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+
     .custom-scrollbar::-webkit-scrollbar { height: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 4px; }
@@ -108,6 +111,10 @@
           <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
         </div>
         <div id="calGrid" class="grid grid-cols-7 gap-1.5"></div>
+        <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+          <span class="text-slate-400">Слов за этот месяц: <span id="calMonthWords" class="font-bold text-purple-400">0</span></span>
+          <span class="text-[10px] text-slate-600">число под днём — слов за день</span>
+        </div>
       </div>
 
       <!-- Блок статистики -->
@@ -120,14 +127,14 @@
 
   <!-- Модальное окно редактирования / создания -->
   <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full max-h-full overflow-y-auto p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center">
         <h3 id="modalTitle" class="font-bold text-purple-400">Редактирование заметки</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-white">✕</button>
       </div>
 
       <div class="flex items-center space-x-2">
-        <span class="text-xs text-slate-400">Настроение:</span>
+        <span class="text-xs text-slate-400">Настроение (необязательно):</span>
         <div class="flex gap-1.5" id="emojiSelector">
           <button type="button" onclick="setEmoji('😊')" class="emoji-option p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-base transition">😊</button>
           <button type="button" onclick="setEmoji('🔥')" class="emoji-option p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-base transition">🔥</button>
@@ -153,15 +160,14 @@
       <div class="space-y-2">
         <div id="modalImageContainer"></div>
         <div class="flex items-center space-x-2">
-          <label class="cursor-pointer bg-slate-950 border border-slate-800 hover:border-purple-500 text-xs text-slate-300 px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5">
+          <label id="photoLabel" class="cursor-pointer shrink-0 bg-slate-950 border border-slate-800 hover:border-purple-500 text-xs text-slate-300 px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5">
             <span>📷 Прикрепить фото</span>
-            <input type="file" id="photoFileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+            <input type="file" id="photoFileInput" accept="image/*" multiple class="hidden" onchange="handleImageUpload(event)">
           </label>
-          <span class="text-[10px] text-slate-500">или вставьте из буфера (Ctrl+V)</span>
-          <button id="removePhotoBtn" onclick="removeAttachedPhoto()" class="hidden text-xs text-red-400 hover:text-red-300 ml-auto">Удалить фото</button>
+          <span id="photoInfo" class="text-[10px] text-slate-500"></span>
         </div>
       </div>
-      
+
       <div class="relative">
         <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." oninput="handleTextDraftInput()" onpaste="handlePaste(event)" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500 custom-scrollbar"></textarea>
         <div id="charCount" class="absolute bottom-3 right-3 text-[10px] text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded">0 симв. / 0 слов</div>
@@ -177,12 +183,11 @@
     </div>
   </div>
 
-  <!-- Модальное окно для увеличенного просмотра фото -->
-  <div id="imageModal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center p-4 z-50 cursor-pointer" onclick="closeImageModal()">
-    <div class="relative max-w-4xl max-h-full flex items-center justify-center">
-      <button onclick="closeImageModal()" class="absolute -top-10 right-0 text-white text-xl bg-slate-800/80 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
-      <img id="modalFullImage" src="" class="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-slate-800">
-    </div>
+  <!-- Просмотр фото на весь экран (листание слева направо) -->
+  <div id="imageModal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden z-50" onclick="if (event.target === this) closeImageModal()">
+    <span id="viewerCounter" class="hidden absolute top-4 left-4 z-10 text-xs text-white bg-black/60 px-2.5 py-1 rounded-full"></span>
+    <button onclick="closeImageModal()" class="absolute top-4 right-4 z-10 text-white text-xl bg-slate-800/80 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
+    <div id="viewerScroller" class="flex h-full w-full overflow-x-auto snap-x snap-mandatory no-scrollbar" onscroll="onViewerScroll()"></div>
   </div>
 
   <script>
@@ -204,8 +209,13 @@
     let openDays = {};
     let currentTab = 'feed';
     let currentCalSubTab = 'calendar';
-    let selectedEmoji = '😊';
-    let currentPhotoUrl = null;
+    let selectedEmoji = null; // по умолчанию без эмодзи
+    let currentPhotos = [];   // [{url, size}] — фото редактируемой записи
+    let isUploading = false;
+
+    const MAX_PHOTOS = 4;
+    const MAX_TOTAL_BYTES = 40 * 1024 * 1024; // 40 МБ на запись
+    const FAV_TAG = '__fav__';
     
     let calCurrentDate = new Date();
 
@@ -370,12 +380,15 @@
     function renderTags() {
       const tagsContainer = document.getElementById('tagsContainer');
       const tags = getAllTags();
+      const on = 'bg-purple-600 text-white';
+      const off = 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800';
 
-      let html = `<button onclick="filterByTag(null)" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${selectedTag === null ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'}">Все</button>`;
-      
+      // "Все" и ⭐ всегда стоят первыми, дальше — обычные теги
+      let html = `<button onclick="filterByTag(null)" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${selectedTag === null ? on : off}">Все</button>`;
+      html += `<button onclick="filterByTag('${FAV_TAG}')" title="Избранное" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${selectedTag === FAV_TAG ? on : off}">⭐</button>`;
+
       tags.forEach(tag => {
-        const isActive = selectedTag === tag;
-        html += `<button onclick="filterByTag('${tag}')" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${isActive ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'}">${tag}</button>`;
+        html += `<button onclick="filterByTag('${tag}')" class="px-3 py-1 rounded-full shrink-0 font-medium transition ${selectedTag === tag ? on : off}">${tag}</button>`;
       });
 
       tagsContainer.innerHTML = html;
@@ -404,86 +417,270 @@
       handleTextDraftInput();
     }
 
+    // ---------- Эмодзи (необязательно, повторный клик снимает выбор) ----------
     function setEmoji(emoji) {
-      selectedEmoji = emoji;
+      selectedEmoji = (selectedEmoji === emoji) ? null : emoji;
+      updateEmojiSelection();
+    }
+
+    function updateEmojiSelection() {
       document.querySelectorAll('.emoji-option').forEach(btn => {
-        btn.classList.remove('border', 'border-purple-500', 'bg-purple-950/50');
+        const active = !!selectedEmoji && btn.textContent.trim() === selectedEmoji;
+        btn.classList.toggle('border', active);
+        btn.classList.toggle('border-purple-500', active);
+        btn.classList.toggle('bg-purple-950/50', active);
       });
-      event.currentTarget.classList.add('border', 'border-purple-500', 'bg-purple-950/50');
+    }
+
+    // ---------- Фото: до 4 штук, до 40 МБ суммарно ----------
+    // В колонке photo_url хранится либо одна ссылка (старые записи и бот),
+    // либо JSON-массив [{url, size}] (несколько фото).
+    function parsePhotos(raw) {
+      if (!raw) return [];
+      const str = String(raw).trim();
+      if (str.startsWith('[')) {
+        try {
+          const arr = JSON.parse(str);
+          return arr
+            .map(i => typeof i === 'string' ? { url: i, size: 0 } : { url: i.url, size: i.size || 0 })
+            .filter(i => i.url);
+        } catch (e) { /* не JSON — считаем обычной ссылкой */ }
+      }
+      return [{ url: str, size: 0 }];
+    }
+
+    function serializePhotos(list) {
+      if (!list.length) return null;
+      return JSON.stringify(list.map(p => ({ url: p.url, size: p.size || 0 })));
+    }
+
+    function totalPhotoBytes() {
+      return currentPhotos.reduce((sum, p) => sum + (p.size || 0), 0);
+    }
+
+    function formatMB(bytes) {
+      return (bytes / 1048576).toFixed(1).replace('.', ',');
     }
 
     async function handleImageUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      await uploadAndSetPhoto(file);
+      await addPhotoFiles(event.target.files);
+      event.target.value = '';
     }
 
-    async function handlePaste(event) {
+    function handlePaste(event) {
       const items = (event.clipboardData || window.clipboardData).items;
-      for (let item of items) {
+      const files = [];
+      for (const item of items) {
         if (item.type.indexOf('image') !== -1) {
-          event.preventDefault();
-          const file = item.getAsFile();
-          await uploadAndSetPhoto(file);
-          break;
+          const f = item.getAsFile();
+          if (f) files.push(f);
         }
       }
+      if (files.length) {
+        event.preventDefault();
+        addPhotoFiles(files);
+      }
     }
 
-    async function uploadAndSetPhoto(file) {
-      const fileExt = file.name ? file.name.split('.').pop() : 'jpg';
-      const fileName = `web_${Date.now()}.${fileExt}`;
-      const filePath = `notes/web_uploads/${fileName}`;
+    async function addPhotoFiles(fileList) {
+      const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
+      if (!files.length || isUploading) return;
 
-      const { data, error } = await supabaseClient.storage
-        .from('diary_photos')
-        .upload(filePath, file);
+      isUploading = true;
+      renderModalImage();
+      const problems = new Set();
 
-      if (error) {
-        alert('Ошибка при загрузке фото');
-        console.error(error);
-        return;
+      for (const file of files) {
+        if (currentPhotos.length >= MAX_PHOTOS) {
+          problems.add(`В одной записи может быть не больше ${MAX_PHOTOS} фото.`);
+          break;
+        }
+        if (totalPhotoBytes() + file.size > MAX_TOTAL_BYTES) {
+          problems.add(`Не поместилось в лимит ${MAX_TOTAL_BYTES / 1048576} МБ на запись (${formatMB(file.size)} МБ).`);
+          continue;
+        }
+
+        let ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : (file.type.split('/')[1] || 'jpg');
+        ext = ext.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        const filePath = `notes/web_uploads/web_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        const { error } = await supabaseClient.storage
+          .from('diary_photos')
+          .upload(filePath, file, { contentType: file.type });
+
+        if (error) {
+          console.error(error);
+          problems.add('Ошибка при загрузке фото.');
+          continue;
+        }
+
+        const { data: publicUrlData } = supabaseClient.storage
+          .from('diary_photos')
+          .getPublicUrl(filePath);
+
+        currentPhotos.push({ url: publicUrlData.publicUrl, size: file.size });
+        renderModalImage();
       }
 
-      const { data: publicUrlData } = supabaseClient.storage
-        .from('diary_photos')
-        .getPublicUrl(filePath);
-
-      currentPhotoUrl = publicUrlData.publicUrl;
+      isUploading = false;
       renderModalImage();
+      if (problems.size) alert(Array.from(problems).join('\n'));
     }
 
     function renderModalImage() {
       const container = document.getElementById('modalImageContainer');
-      const removeBtn = document.getElementById('removePhotoBtn');
-      if (currentPhotoUrl) {
-        container.innerHTML = `<img src="${currentPhotoUrl}" class="rounded-xl max-h-48 w-full object-cover mb-2 border border-slate-800">`;
-        removeBtn.classList.remove('hidden');
+      const info = document.getElementById('photoInfo');
+      const label = document.getElementById('photoLabel');
+      const input = document.getElementById('photoFileInput');
+
+      container.innerHTML = currentPhotos.length ? `
+        <div class="grid grid-cols-4 gap-2 mb-1">
+          ${currentPhotos.map((p, i) => `
+            <div class="relative aspect-square">
+              <img src="${p.url}" class="w-full h-full object-cover rounded-xl border border-slate-800">
+              <button type="button" onclick="removePhoto(${i})" title="Убрать фото" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-800 border border-slate-700 text-[10px] text-slate-300 hover:bg-red-900 hover:text-white flex items-center justify-center transition">✕</button>
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+
+      if (isUploading) {
+        info.textContent = 'Загрузка…';
+      } else if (currentPhotos.length) {
+        info.textContent = `${currentPhotos.length}/${MAX_PHOTOS} фото · ${formatMB(totalPhotoBytes())} / ${MAX_TOTAL_BYTES / 1048576} МБ`;
       } else {
-        container.innerHTML = '';
-        removeBtn.classList.add('hidden');
+        info.textContent = `до ${MAX_PHOTOS} фото, всего до ${MAX_TOTAL_BYTES / 1048576} МБ · Ctrl+V`;
       }
+
+      const locked = isUploading || currentPhotos.length >= MAX_PHOTOS;
+      input.disabled = locked;
+      label.classList.toggle('opacity-50', locked);
+      label.classList.toggle('pointer-events-none', locked);
     }
 
-    function removeAttachedPhoto() {
-      currentPhotoUrl = null;
+    function removePhoto(index) {
+      currentPhotos.splice(index, 1);
       renderModalImage();
     }
 
-    function openImageModal(url) {
-      const modal = document.getElementById('imageModal');
-      const img = document.getElementById('modalFullImage');
-      img.src = url;
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
+    // ---------- Просмотр на весь экран ----------
+    function openImageModal(noteId, index) {
+      const note = allNotes.find(n => n.id === noteId);
+      if (!note) return;
+      const photos = parsePhotos(note.photo_url);
+      if (!photos.length) return;
+
+      const scroller = document.getElementById('viewerScroller');
+      scroller.innerHTML = photos.map(p => `
+        <div class="shrink-0 w-full h-full snap-center flex items-center justify-center p-4" onclick="if (event.target === this) closeImageModal()">
+          <img src="${p.url}" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-800">
+        </div>
+      `).join('');
+
+      document.getElementById('imageModal').classList.remove('hidden');
+      scroller.scrollTo({ left: (index || 0) * scroller.clientWidth, behavior: 'auto' });
+      onViewerScroll();
+    }
+
+    function onViewerScroll() {
+      const scroller = document.getElementById('viewerScroller');
+      const counter = document.getElementById('viewerCounter');
+      const total = scroller.children.length;
+      if (total < 2) { counter.classList.add('hidden'); return; }
+      const idx = Math.round(scroller.scrollLeft / scroller.clientWidth);
+      counter.textContent = `${Math.min(idx + 1, total)} / ${total}`;
+      counter.classList.remove('hidden');
     }
 
     function closeImageModal() {
-      const modal = document.getElementById('imageModal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
+      document.getElementById('imageModal').classList.add('hidden');
+      document.getElementById('viewerScroller').innerHTML = '';
     }
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeImageModal();
+    });
+
+    // ---------- Карусель фото в ленте ----------
+    function renderPhotoCarousel(note) {
+      const photos = parsePhotos(note.photo_url);
+      if (!photos.length) return '';
+
+      if (photos.length === 1) {
+        return `
+          <div class="my-2">
+            <img src="${photos[0].url}" onclick="openImageModal(${note.id}, 0)" title="Нажмите, чтобы увеличить" class="rounded-xl max-h-80 w-auto max-w-full object-contain bg-slate-950 border border-slate-800 shadow-md cursor-pointer hover:opacity-90 transition">
+          </div>
+        `;
+      }
+
+      return `
+        <div class="my-2 relative">
+          <div class="carousel-scroll flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain no-scrollbar rounded-xl border border-slate-800 bg-slate-950" onscroll="onCarouselScroll(this)">
+            ${photos.map((p, i) => `
+              <div class="shrink-0 w-full snap-center flex justify-center">
+                <img src="${p.url}" loading="lazy" onclick="openImageModal(${note.id}, ${i})" class="max-h-80 w-auto max-w-full object-contain cursor-pointer">
+              </div>
+            `).join('')}
+          </div>
+          <span class="carousel-counter absolute top-2 right-2 text-[10px] bg-black/60 text-white px-2 py-0.5 rounded-full pointer-events-none">1 / ${photos.length}</span>
+          <button onclick="scrollCarousel(this, -1)" class="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition">‹</button>
+          <button onclick="scrollCarousel(this, 1)" class="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition">›</button>
+        </div>
+      `;
+    }
+
+    function onCarouselScroll(el) {
+      const idx = Math.round(el.scrollLeft / el.clientWidth);
+      const counter = el.parentElement.querySelector('.carousel-counter');
+      if (counter) counter.textContent = `${Math.min(idx + 1, el.children.length)} / ${el.children.length}`;
+    }
+
+    function scrollCarousel(btn, dir) {
+      const scroller = btn.parentElement.querySelector('.carousel-scroll');
+      scroller.scrollBy({ left: dir * scroller.clientWidth, behavior: 'smooth' });
+    }
+
+    // ---------- Избранное ----------
+    function favBtnClass(isFav) {
+      return `text-lg leading-none px-1 transition ${isFav ? 'text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`;
+    }
+
+    function updateFavButtons(id) {
+      const note = allNotes.find(n => n.id === id);
+      if (!note) return;
+      document.querySelectorAll(`[data-fav-id="${id}"]`).forEach(btn => {
+        btn.textContent = note.is_favorite ? '★' : '☆';
+        btn.className = favBtnClass(note.is_favorite);
+        btn.title = note.is_favorite ? 'Убрать из избранного' : 'В избранное';
+      });
+    }
+
+    async function toggleFavorite(id) {
+      const note = allNotes.find(n => n.id === id);
+      if (!note) return;
+
+      const newValue = !note.is_favorite;
+      note.is_favorite = newValue;
+      updateFavButtons(id);
+
+      const { error } = await supabaseClient
+        .from('notes')
+        .update({ is_favorite: newValue })
+        .eq('id', id);
+
+      if (error) {
+        console.error(error);
+        note.is_favorite = !newValue;
+        updateFavButtons(id);
+        alert('Не удалось обновить избранное. Проверьте, что в таблице notes есть колонка is_favorite.');
+        return;
+      }
+
+      if (selectedTag === FAV_TAG) renderNotes();
+    }
+
+    // ---------- Лента ----------
     function renderNotes() {
       const container = document.getElementById('notesContainer');
       const groups = groupByDate(allNotes);
@@ -494,8 +691,11 @@
         const matchedNotes = notesInDay.filter(note => {
           const text = (note.text || '').toLowerCase();
           const matchesText = text.includes(searchQuery);
-          const matchesTag = selectedTag === null || text.includes(selectedTag.toLowerCase());
           const matchesDate = dateStr.toLowerCase().includes(searchQuery);
+          const matchesTag =
+            selectedTag === null ? true :
+            selectedTag === FAV_TAG ? !!note.is_favorite :
+            text.includes(selectedTag.toLowerCase());
 
           return (matchesText || matchesDate) && matchesTag;
         });
@@ -506,7 +706,9 @@
       });
 
       if (Object.keys(filteredGroups).length === 0) {
-        container.innerHTML = '<p class="text-slate-500 text-center py-10">Записей не найдено.</p>';
+        container.innerHTML = (selectedTag === FAV_TAG && !searchQuery)
+          ? '<p class="text-slate-500 text-center py-10">В избранном пока пусто. Нажмите ☆ у записи.</p>'
+          : '<p class="text-slate-500 text-center py-10">Записей не найдено.</p>';
         return;
       }
 
@@ -530,23 +732,21 @@
                 const rawText = note.text || '';
                 const renderedHtml = marked.parse(rawText);
                 const time = new Date(note.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-                const emoji = note.emoji || '😊';
 
                 return `
                   <div class="px-5 py-4 space-y-3 hover:bg-slate-800/30 transition">
                     <div class="flex items-center justify-between">
                       <div class="flex items-center space-x-2">
-                        <span class="text-base">${emoji}</span>
+                        ${note.emoji ? `<span class="text-base">${note.emoji}</span>` : ''}
                         <span class="text-xs text-slate-500">${time}</span>
                       </div>
-                      <button onclick="openEditModal(${note.id})" class="text-xs text-purple-400 hover:text-purple-300 bg-purple-950/40 px-2.5 py-1 rounded-lg border border-purple-900/40 transition">Редактировать</button>
+                      <div class="flex items-center space-x-2">
+                        <button data-fav-id="${note.id}" onclick="toggleFavorite(${note.id})" title="${note.is_favorite ? 'Убрать из избранного' : 'В избранное'}" class="${favBtnClass(note.is_favorite)}">${note.is_favorite ? '★' : '☆'}</button>
+                        <button onclick="openEditModal(${note.id})" class="text-xs text-purple-400 hover:text-purple-300 bg-purple-950/40 px-2.5 py-1 rounded-lg border border-purple-900/40 transition">Редактировать</button>
+                      </div>
                     </div>
 
-                    ${note.photo_url ? `
-                      <div class="my-2">
-                        <img src="${note.photo_url}" onclick="openImageModal('${note.photo_url}')" title="Нажмите, чтобы увеличить" class="rounded-xl max-h-80 w-auto max-w-full object-contain bg-slate-950 border border-slate-800 shadow-md cursor-pointer hover:opacity-90 transition">
-                      </div>
-                    ` : ''}
+                    ${renderPhotoCarousel(note)}
 
                     <div class="markdown-body text-sm text-slate-200">
                       ${renderedHtml || '<span class="text-slate-500 italic">Без текста</span>'}
@@ -560,43 +760,65 @@
       }).join('');
     }
 
+    // ---------- Календарь ----------
+    function countWords(text) {
+      const t = (text || '').trim();
+      return t ? t.split(/\s+/).length : 0;
+    }
+
+    // Эмодзи дня — то, которое встречается чаще всего. При равенстве побеждает более свежее.
+    function getTopEmoji(notes) {
+      const counts = new Map(); // порядок вставки: от новых записей к старым
+      notes.forEach(n => {
+        if (n.emoji) counts.set(n.emoji, (counts.get(n.emoji) || 0) + 1);
+      });
+      let best = '';
+      let bestCount = 0;
+      counts.forEach((c, e) => {
+        if (c > bestCount) { best = e; bestCount = c; }
+      });
+      return best;
+    }
+
     function renderCalendar() {
       const year = calCurrentDate.getFullYear();
       const month = calCurrentDate.getMonth();
-      
+
       const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
       document.getElementById('calMonthTitle').innerText = `${monthNames[month]} ${year}`;
 
       const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
       const totalDays = new Date(year, month + 1, 0).getDate();
-      
+      const groups = groupByDate(allNotes);
+
       let html = '';
-      
+      let monthWords = 0;
+
       for (let i = 0; i < firstDayIndex; i++) {
-        html += `<div class="aspect-square bg-slate-950/40 rounded-xl opacity-20"></div>`;
+        html += `<div class="min-h-[3.5rem] bg-slate-950/40 rounded-xl opacity-20"></div>`;
       }
 
       for (let day = 1; day <= totalDays; day++) {
         const checkDate = new Date(year, month, day);
         const dateStrRu = checkDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-        
-        const notesOnThisDay = allNotes.filter(note => {
-          const nDate = new Date(note.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-          return nDate === dateStrRu;
-        });
 
+        const notesOnThisDay = groups[dateStrRu] || [];
         const hasNotes = notesOnThisDay.length > 0;
-        const mainEmoji = hasNotes ? (notesOnThisDay[0].emoji || '📌') : '';
+        const dayWords = notesOnThisDay.reduce((sum, n) => sum + countWords(n.text), 0);
+        monthWords += dayWords;
+        const topEmoji = getTopEmoji(notesOnThisDay);
 
         html += `
-          <div onclick="openDayFromCalendar('${dateStrRu}')" class="aspect-square bg-slate-950 border ${hasNotes ? 'border-purple-600/60 bg-purple-950/20 cursor-pointer hover:bg-purple-900/30' : 'border-slate-800/80'} rounded-xl flex flex-col items-center justify-center transition relative">
-            <span class="text-xs ${hasNotes ? 'text-purple-300 font-bold' : 'text-slate-500'}">${day}</span>
-            <span class="text-xs mt-0.5">${mainEmoji}</span>
+          <div onclick="openDayFromCalendar('${dateStrRu}')" class="min-h-[3.5rem] py-1 bg-slate-950 border ${hasNotes ? 'border-purple-600/60 bg-purple-950/20 cursor-pointer hover:bg-purple-900/30' : 'border-slate-800/80'} rounded-xl flex flex-col items-center justify-center transition">
+            <span class="text-xs leading-none ${hasNotes ? 'text-purple-300 font-bold' : 'text-slate-500'}">${day}</span>
+            <span class="text-xs h-4 leading-4 mt-0.5">${topEmoji}</span>
+            <span class="text-[9px] leading-none text-slate-400">${hasNotes ? dayWords : ''}</span>
           </div>
         `;
       }
 
       document.getElementById('calGrid').innerHTML = html;
+      document.getElementById('calMonthWords').textContent = monthWords.toLocaleString('ru-RU');
     }
 
     function renderStats() {
@@ -657,13 +879,14 @@
 
     function openCreateModal() {
       currentEditingId = null;
-      currentPhotoUrl = null;
+      currentPhotos = [];
       document.getElementById('modalTitle').innerText = 'Новая запись';
       const savedDraft = localStorage.getItem('diary_draft') || '';
       document.getElementById('modalText').value = savedDraft;
       renderModalImage();
       document.getElementById('deleteBtn').classList.add('hidden');
-      selectedEmoji = '😊';
+      selectedEmoji = null;
+      updateEmojiSelection();
       updateCounters();
       document.getElementById('editModal').classList.remove('hidden');
       document.getElementById('editModal').classList.add('flex');
@@ -676,8 +899,9 @@
 
       document.getElementById('modalTitle').innerText = 'Редактирование заметки';
       document.getElementById('modalText').value = note.text || '';
-      selectedEmoji = note.emoji || '😊';
-      currentPhotoUrl = note.photo_url || null;
+      selectedEmoji = note.emoji || null;
+      updateEmojiSelection();
+      currentPhotos = parsePhotos(note.photo_url);
       renderModalImage();
       document.getElementById('deleteBtn').classList.remove('hidden');
       updateCounters();
@@ -689,20 +913,27 @@
       document.getElementById('editModal').classList.add('hidden');
       document.getElementById('editModal').classList.remove('flex');
       currentEditingId = null;
-      currentPhotoUrl = null;
+      currentPhotos = [];
     }
 
     async function saveCurrentNote() {
+      if (isUploading) {
+        alert('Дождитесь окончания загрузки фото');
+        return;
+      }
+
       const text = document.getElementById('modalText').value.trim();
-      if (!text && !currentPhotoUrl) {
+      if (!text && !currentPhotos.length) {
         alert('Заметка не может быть пустой');
         return;
       }
 
+      const photoField = serializePhotos(currentPhotos);
+
       if (currentEditingId === null) {
         const { error } = await supabaseClient
           .from('notes')
-          .insert([{ text: text, emoji: selectedEmoji, photo_url: currentPhotoUrl }]);
+          .insert([{ text: text, emoji: selectedEmoji, photo_url: photoField }]);
 
         if (!error) {
           localStorage.removeItem('diary_draft');
@@ -717,7 +948,7 @@
       } else {
         const { error } = await supabaseClient
           .from('notes')
-          .update({ text: text, emoji: selectedEmoji, photo_url: currentPhotoUrl })
+          .update({ text: text, emoji: selectedEmoji, photo_url: photoField })
           .eq('id', currentEditingId);
 
         if (!error) {
@@ -762,7 +993,8 @@
 
     function measureHeader() {
       headerSpacer.style.height = mainHeader.offsetHeight + 'px';
-      hideOffset = headerTop.offsetHeight + 12; // 12px = space-y-3
+      // высота верхней части + отступ space-y-3 (12) + padding-top шапки (16) - 8px воздуха над поиском
+      hideOffset = headerTop.offsetHeight + 20;
       applyHeaderTransform();
     }
 
