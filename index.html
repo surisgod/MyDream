@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-
+    /* Тонкий красивый скроллбар для ПК */
     .custom-scrollbar::-webkit-scrollbar {
       height: 4px;
     }
@@ -27,7 +27,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
 
-  <!-- Липкая шапка с поиском и тегами -->
+  <!-- Липкая шапка -->
   <header class="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4">
     <div class="max-w-3xl mx-auto px-4 space-y-3">
       <div class="flex justify-between items-center">
@@ -40,36 +40,85 @@
         </div>
       </div>
 
-      <!-- Поиск -->
-      <div class="flex gap-2">
+      <!-- Переключатель вкладок: Лента / Календарь -->
+      <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+        <button id="tabFeedBtn" onclick="switchTab('feed')" class="flex-1 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white transition">Лента записей</button>
+        <button id="tabCalBtn" onclick="switchTab('calendar')" class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition">Календарь</button>
+      </div>
+
+      <!-- Поиск (активен только в режиме ленты) -->
+      <div id="searchWrapper" class="flex gap-2">
         <input type="text" id="searchInput" placeholder="Поиск по тексту, числу, месяцу или году..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500">
       </div>
 
-      <!-- Панель тегов (без уродливого слайдера, чистый скролл) -->
-      <div id="tagsContainer" class="flex gap-2 overflow-x-auto custom-scrollbar pb-2 text-xs">
+      <!-- Панель тегов -->
+      <div id="tagsContainer" class="flex gap-2 overflow-x-auto custom-scrollbar pb-1 text-xs">
         <button onclick="filterByTag(null)" class="tag-btn bg-purple-600 text-white px-3 py-1 rounded-full shrink-0 font-medium transition">Все</button>
       </div>
     </div>
   </header>
 
   <div class="max-w-3xl mx-auto px-4 py-6">
+    <!-- Вкладка 1: Лента -->
     <main id="notesContainer" class="space-y-4">
       <p class="text-slate-500 text-center py-10">Загрузка записей...</p>
     </main>
+
+    <!-- Вкладка 2: Календарь (скрыт по умолчанию) -->
+    <div id="calendarContainer" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h3 id="calMonthTitle" class="font-bold text-purple-400 text-base">Месяц Год</h3>
+          <div class="space-x-1">
+            <button onclick="changeMonth(-1)" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg transition">←</button>
+            <button onclick="changeMonth(1)" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg transition">→</button>
+          </div>
+        </div>
+        <!-- Дни недели -->
+        <div class="grid grid-cols-7 gap-1 text-center text-xs text-slate-500 font-medium mb-2">
+          <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+        </div>
+        <!-- Сетка дней -->
+        <div id="calGrid" class="grid grid-cols-7 gap-1.5"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- Модальное окно редактирования / создания с автосохранением и счетчиком -->
+  <!-- Модальное окно редактирования / создания -->
   <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center">
         <h3 id="modalTitle" class="font-bold text-purple-400">Редактирование заметки</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-white">✕</button>
       </div>
+
+      <!-- Выбор эмодзи-настроения -->
+      <div class="flex items-center space-x-2">
+        <span class="text-xs text-slate-400">Настроение:</span>
+        <div class="flex gap-1.5" id="emojiSelector">
+          <button type="button" onclick="setEmoji('😊')" class="emoji-option p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-base transition">😊</button>
+          <button type="button" onclick="setEmoji('🔥')" class="emoji-option p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-base transition">🔥</button>
+          <button type="button" onclick="setEmoji('💡')" class="emoji-option p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-base transition">💡</button>
+          <button type="button" onclick="setEmoji('🌧️')" class="emoji-option p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-base transition">🌧️</button>
+          <button type="button" onclick="setEmoji('❤️')" class="emoji-option p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-base transition">❤️</button>
+          <button type="button" onclick="setEmoji('🎯')" class="emoji-option p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-base transition">🎯</button>
+        </div>
+      </div>
+
+      <!-- Панель инструментов Markdown -->
+      <div class="flex flex-wrap gap-1 bg-slate-950 border border-slate-800 p-1.5 rounded-xl">
+        <button onclick="insertMarkdown('**', '**')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded text-slate-300 transition" title="Жирный">B</button>
+        <button onclick="insertMarkdown('*', '*')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs italic rounded text-slate-300 transition" title="Курсив">I</button>
+        <button onclick="insertMarkdown('### ', '')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs font-semibold rounded text-slate-300 transition" title="Заголовок">H3</button>
+        <button onclick="insertMarkdown('- ', '')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs rounded text-slate-300 transition" title="Список">• Список</button>
+        <button onclick="insertMarkdown('> ', '')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs rounded text-slate-300 transition" title="Цитата">“ ”</button>
+        <button onclick="insertMarkdown('`', '`')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs font-mono rounded text-slate-300 transition" title="Код">&lt;/&gt;</button>
+      </div>
+
       <div id="modalImageContainer"></div>
       
       <div class="relative">
         <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." oninput="handleTextDraftInput()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500"></textarea>
-        <!-- Счетчик символов и слов -->
         <div id="charCount" class="absolute bottom-3 right-3 text-[10px] text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded">0 симв. / 0 слов</div>
       </div>
 
@@ -100,6 +149,11 @@
     let selectedTag = null;
     let searchQuery = '';
     let openDays = {};
+    let currentTab = 'feed'; // 'feed' или 'calendar'
+    let selectedEmoji = '😊'; // Эмодзи по умолчанию
+    
+    // Переменные для календаря
+    let calCurrentDate = new Date();
 
     const tgUser = tg.initDataUnsafe?.user;
     if (tgUser && tgUser.id) {
@@ -153,8 +207,36 @@
         renderNotes();
       });
 
-      // Слушатель ввода для счетчика слов/символов
       document.getElementById('modalText').addEventListener('input', updateCounters);
+    }
+
+    // Переключение вкладок (Лента / Календарь)
+    function switchTab(tab) {
+      currentTab = tab;
+      const feedBtn = document.getElementById('tabFeedBtn');
+      const calBtn = document.getElementById('tabCalBtn');
+      const notesContainer = document.getElementById('notesContainer');
+      const calendarContainer = document.getElementById('calendarContainer');
+      const searchWrapper = document.getElementById('searchWrapper');
+      const tagsContainer = document.getElementById('tagsContainer');
+
+      if (tab === 'feed') {
+        feedBtn.className = "flex-1 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white transition";
+        calBtn.className = "flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition";
+        notesContainer.classList.remove('hidden');
+        searchWrapper.classList.remove('hidden');
+        tagsContainer.classList.remove('hidden');
+        calendarContainer.classList.add('hidden');
+        renderNotes();
+      } else {
+        calBtn.className = "flex-1 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white transition";
+        feedBtn.className = "flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition";
+        notesContainer.classList.add('hidden');
+        searchWrapper.classList.add('hidden');
+        tagsContainer.classList.add('hidden');
+        calendarContainer.classList.remove('hidden');
+        renderCalendar();
+      }
     }
 
     async function fetchNotes() {
@@ -177,7 +259,8 @@
       });
 
       renderTags();
-      renderNotes();
+      if (currentTab === 'feed') renderNotes();
+      else renderCalendar();
     }
 
     function groupByDate(notesList) {
@@ -225,15 +308,36 @@
       renderNotes();
     }
 
+    // Вставка Markdown тегов
+    function insertMarkdown(startTag, endTag) {
+      const textarea = document.getElementById('modalText');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+
+      textarea.value = text.substring(0, start) + startTag + text.substring(start, end) + endTag + text.substring(end);
+      textarea.focus();
+      textarea.setSelectionRange(start + startTag.length, end + startTag.length);
+      handleTextDraftInput();
+    }
+
+    // Выбор эмодзи
+    function setEmoji(emoji) {
+      selectedEmoji = emoji;
+      document.querySelectorAll('.emoji-option').forEach(btn => {
+        btn.classList.remove('border', 'border-purple-500', 'bg-purple-950/50');
+      });
+      event.currentTarget.classList.add('border', 'border-purple-500', 'bg-purple-950/50');
+    }
+
+    // Отрисовка ленты
     function renderNotes() {
       const container = document.getElementById('notesContainer');
-
       const groups = groupByDate(allNotes);
       let filteredGroups = {};
 
       Object.keys(groups).forEach(dateStr => {
         const notesInDay = groups[dateStr];
-        
         const matchedNotes = notesInDay.filter(note => {
           const text = (note.text || '').toLowerCase();
           const matchesText = text.includes(searchQuery);
@@ -273,10 +377,12 @@
                 const fullText = note.text || 'Без текста';
                 const shortTitle = fullText.split('\n')[0].slice(0, 60) + (fullText.length > 60 ? '...' : '');
                 const time = new Date(note.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                const emoji = note.emoji || '😊';
 
                 return `
                   <div onclick="openEditModal(${note.id})" class="px-5 py-3.5 flex items-center justify-between hover:bg-slate-800/40 cursor-pointer transition">
                     <div class="flex items-center space-x-3 overflow-hidden">
+                      <span class="text-sm shrink-0">${emoji}</span>
                       ${note.photo_url ? '<span class="text-[10px] bg-purple-950 text-purple-300 px-2 py-0.5 rounded shrink-0">📷 фото</span>' : ''}
                       <p class="text-sm text-slate-200 truncate font-medium">${shortTitle}</p>
                     </div>
@@ -290,7 +396,63 @@
       }).join('');
     }
 
-    // Счетчик символов и слов
+    // Отрисовка календаря
+    function renderCalendar() {
+      const year = calCurrentDate.getFullYear();
+      const month = calCurrentDate.getMonth();
+      
+      const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+      document.getElementById('calMonthTitleinnerText') || (document.getElementById('calMonthTitle').innerText = `${monthNames[month]} ${year}`);
+
+      const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7; // Пн старт
+      const totalDays = new Date(year, month + 1, 0).getDate();
+      
+      let html = '';
+      
+      // Пустые ячейки до начала месяца
+      for (let i = 0; i < firstDayIndex; i++) {
+        html += `<div class="aspect-square bg-slate-950/40 rounded-xl opacity-20"></div>`;
+      }
+
+      // Дни месяца
+      for (let day = 1; day <= totalDays; day++) {
+        const checkDate = new Date(year, month, day);
+        const dateStrRu = checkDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+        
+        // Ищем записи за этот день
+        const notesOnThisDay = allNotes.filter(note => {
+          const nDate = new Date(note.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+          return nDate === dateStrRu;
+        });
+
+        const hasNotes = notesOnThisDay.length > 0;
+        const mainEmoji = hasNotes ? (notesOnThisDay[0].emoji || '📌') : '';
+
+        html += `
+          <div onclick="openDayFromCalendar('${dateStrRu}')" class="aspect-square bg-slate-950 border ${hasNotes ? 'border-purple-600/60 bg-purple-950/20 cursor-pointer hover:bg-purple-900/30' : 'border-slate-800/80'} rounded-xl flex flex-col items-center justify-center transition relative">
+            <span class="text-xs ${hasNotes ? 'text-purple-300 font-bold' : 'text-slate-500'}">${day}</span>
+            <span class="text-xs mt-0.5">${mainEmoji}</span>
+          </div>
+        `;
+      }
+
+      document.getElementById('calGrid').innerHTML = html;
+    }
+
+    function changeMonth(direction) {
+      calCurrentDate.setMonth(calCurrentDate.getMonth() + direction);
+      renderCalendar();
+    }
+
+    function openDayFromCalendar(dateStr) {
+      // Переключаемся на ленту и раскрываем этот день
+      switchTab('feed');
+      openDays[dateStr] = true;
+      searchQuery = dateStr.toLowerCase();
+      document.getElementById('searchInput').value = dateStr;
+      renderNotes();
+    }
+
     function updateCounters() {
       const text = document.getElementById('modalText').value;
       const chars = text.length;
@@ -298,7 +460,6 @@
       document.getElementById('charCount').innerText = `${chars} симв. / ${words} слов`;
     }
 
-    // Автосохранение черновика в localStorage
     function handleTextDraftInput() {
       updateCounters();
       if (currentEditingId === null) {
@@ -309,13 +470,11 @@
     function openCreateModal() {
       currentEditingId = null;
       document.getElementById('modalTitle').innerText = 'Новая запись';
-      
-      // Восстанавливаем черновик, если он был
       const savedDraft = localStorage.getItem('diary_draft') || '';
       document.getElementById('modalText').value = savedDraft;
-      
       document.getElementById('modalImageContainer').innerHTML = '';
       document.getElementById('deleteBtn').classList.add('hidden');
+      selectedEmoji = '😊';
       updateCounters();
       document.getElementById('editModal').classList.remove('hidden');
       document.getElementById('editModal').classList.add('flex');
@@ -328,6 +487,7 @@
 
       document.getElementById('modalTitle').innerText = 'Редактирование заметки';
       document.getElementById('modalText').value = note.text || '';
+      selectedEmoji = note.emoji || '😊';
       document.getElementById('modalImageContainer').innerHTML = note.photo_url 
         ? `<img src="${note.photo_url}" class="rounded-xl max-h-48 w-full object-cover mb-3">` 
         : '';
@@ -353,10 +513,10 @@
       if (currentEditingId === null) {
         const { error } = await supabaseClient
           .from('notes')
-          .insert([{ text: text }]);
+          .insert([{ text: text, emoji: selectedEmoji }]);
 
         if (!error) {
-          localStorage.removeItem('diary_draft'); // Очищаем черновик после успешного сохранения
+          localStorage.removeItem('diary_draft');
           closeModal();
           const todayStr = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
           openDays[todayStr] = true;
@@ -368,7 +528,7 @@
       } else {
         const { error } = await supabaseClient
           .from('notes')
-          .update({ text: text })
+          .update({ text: text, emoji: selectedEmoji })
           .eq('id', currentEditingId);
 
         if (!error) {
@@ -380,7 +540,6 @@
       }
     }
 
-    // Защита от случайного удаления (двойное подтверждение)
     async function deleteCurrentNote() {
       if (!confirm('⚠️ Внимание! Запись будет удалена безвозвратно. Вы абсолютно уверены?')) return;
       
