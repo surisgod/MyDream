@@ -7,6 +7,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* Убираем стандартный скроллбар и делаем его аккуратным */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
 
@@ -17,7 +27,6 @@
         <h1 class="text-xl font-bold text-purple-400">📖 Мой дневник</h1>
         <div class="flex items-center space-x-3">
           <span id="userInfo" class="text-xs text-slate-400"></span>
-          <!-- Кнопка добавления новой записи -->
           <button onclick="openCreateModal()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium px-3 py-1.5 rounded-xl transition flex items-center space-x-1 shadow-lg">
             <span>+ Новая запись</span>
           </button>
@@ -26,11 +35,11 @@
 
       <!-- Поиск -->
       <div class="flex gap-2">
-        <input type="text" id="searchInput" placeholder="Поиск по записям..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500">
+        <input type="text" id="searchInput" placeholder="Поиск по тексту, числу, месяцу или году..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500">
       </div>
 
-      <!-- Панель тегов -->
-      <div id="tagsContainer" class="flex gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
+      <!-- Панель тегов (без уродливого слайдера, чистый скролл) -->
+      <div id="tagsContainer" class="flex gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
         <button onclick="filterByTag(null)" class="tag-btn bg-purple-600 text-white px-3 py-1 rounded-full shrink-0 font-medium transition">Все</button>
       </div>
     </div>
@@ -42,7 +51,7 @@
     </main>
   </div>
 
-  <!-- Модальное окно редактирования / создания -->
+  <!-- Модальное окно редактирования / создания с автосохранением и счетчиком -->
   <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center">
@@ -50,8 +59,14 @@
         <button onclick="closeModal()" class="text-slate-400 hover:text-white">✕</button>
       </div>
       <div id="modalImageContainer"></div>
-      <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500"></textarea>
-      <div class="flex justify-between">
+      
+      <div class="relative">
+        <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." oninput="handleTextDraftInput()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500"></textarea>
+        <!-- Счетчик символов и слов -->
+        <div id="charCount" class="absolute bottom-3 right-3 text-[10px] text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded">0 симв. / 0 слов</div>
+      </div>
+
+      <div class="flex justify-between items-center">
         <button id="deleteBtn" onclick="deleteCurrentNote()" class="px-4 py-2 bg-red-950/40 text-red-400 border border-red-900/50 rounded-xl text-xs hover:bg-red-900/40">Удалить</button>
         <div class="space-x-2">
           <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 text-xs rounded-xl hover:bg-slate-700">Отмена</button>
@@ -124,12 +139,15 @@
       await fetchNotes();
 
       document.getElementById('searchInput').addEventListener('input', (e) => {
-        searchQuery = e.target.value.toLowerCase();
+        searchQuery = e.target.value.toLowerCase().trim();
         if (searchQuery) {
           Object.keys(openDays).forEach(d => openDays[d] = true);
         }
         renderNotes();
       });
+
+      // Слушатель ввода для счетчика слов/символов
+      document.getElementById('modalText').addEventListener('input', updateCounters);
     }
 
     async function fetchNotes() {
@@ -203,23 +221,35 @@
     function renderNotes() {
       const container = document.getElementById('notesContainer');
 
-      const filtered = allNotes.filter(note => {
-        const text = (note.text || '').toLowerCase();
-        const matchesSearch = text.includes(searchQuery);
-        const matchesTag = selectedTag === null || text.includes(selectedTag.toLowerCase());
-        return matchesSearch && matchesTag;
+      const groups = groupByDate(allNotes);
+      let filteredGroups = {};
+
+      Object.keys(groups).forEach(dateStr => {
+        const notesInDay = groups[dateStr];
+        
+        const matchedNotes = notesInDay.filter(note => {
+          const text = (note.text || '').toLowerCase();
+          const matchesText = text.includes(searchQuery);
+          const matchesTag = selectedTag === null || text.includes(selectedTag.toLowerCase());
+          const matchesDate = dateStr.toLowerCase().includes(searchQuery);
+
+          return (matchesText || matchesDate) && matchesTag;
+        });
+
+        if (matchedNotes.length > 0) {
+          filteredGroups[dateStr] = matchedNotes;
+        }
       });
 
-      if (filtered.length === 0) {
+      if (Object.keys(filteredGroups).length === 0) {
         container.innerHTML = '<p class="text-slate-500 text-center py-10">Записей не найдено.</p>';
         return;
       }
 
-      const groups = groupByDate(filtered);
-
-      container.innerHTML = Object.keys(groups).map(date => {
+      container.innerHTML = Object.keys(filteredGroups).map(date => {
         const isOpen = openDays[date] || false;
-        const count = groups[date].length;
+        const notesList = filteredGroups[date];
+        const count = notesList.length;
 
         return `
           <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden transition">
@@ -232,7 +262,7 @@
             </button>
 
             <div class="${isOpen ? 'block' : 'hidden'} divide-y divide-slate-800/60 border-t border-slate-800/60">
-              ${groups[date].map(note => {
+              ${notesList.map(note => {
                 const fullText = note.text || 'Без текста';
                 const shortTitle = fullText.split('\n')[0].slice(0, 60) + (fullText.length > 60 ? '...' : '');
                 const time = new Date(note.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -253,12 +283,33 @@
       }).join('');
     }
 
+    // Счетчик символов и слов
+    function updateCounters() {
+      const text = document.getElementById('modalText').value;
+      const chars = text.length;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      document.getElementById('charCount').innerText = `${chars} симв. / ${words} слов`;
+    }
+
+    // Автосохранение черновика в localStorage
+    function handleTextDraftInput() {
+      updateCounters();
+      if (currentEditingId === null) {
+        localStorage.setItem('diary_draft', document.getElementById('modalText').value);
+      }
+    }
+
     function openCreateModal() {
       currentEditingId = null;
       document.getElementById('modalTitle').innerText = 'Новая запись';
-      document.getElementById('modalText').value = '';
+      
+      // Восстанавливаем черновик, если он был
+      const savedDraft = localStorage.getItem('diary_draft') || '';
+      document.getElementById('modalText').value = savedDraft;
+      
       document.getElementById('modalImageContainer').innerHTML = '';
       document.getElementById('deleteBtn').classList.add('hidden');
+      updateCounters();
       document.getElementById('editModal').classList.remove('hidden');
       document.getElementById('editModal').classList.add('flex');
     }
@@ -274,6 +325,7 @@
         ? `<img src="${note.photo_url}" class="rounded-xl max-h-48 w-full object-cover mb-3">` 
         : '';
       document.getElementById('deleteBtn').classList.remove('hidden');
+      updateCounters();
       document.getElementById('editModal').classList.remove('hidden');
       document.getElementById('editModal').classList.add('flex');
     }
@@ -297,6 +349,7 @@
           .insert([{ text: text }]);
 
         if (!error) {
+          localStorage.removeItem('diary_draft'); // Очищаем черновик после успешного сохранения
           closeModal();
           const todayStr = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
           openDays[todayStr] = true;
@@ -320,8 +373,10 @@
       }
     }
 
+    // Защита от случайного удаления (двойное подтверждение)
     async function deleteCurrentNote() {
-      if (!confirm('Точно удалить эту запись?')) return;
+      if (!confirm('⚠️ Внимание! Запись будет удалена безвозвратно. Вы абсолютно уверены?')) return;
+      
       const { error } = await supabaseClient
         .from('notes')
         .delete()
