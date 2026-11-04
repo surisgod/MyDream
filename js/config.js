@@ -2,7 +2,7 @@
 export const SUPABASE_URL = 'https://oblwxfefeltikdkmodon.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_bhvGHwhyHMBsG7amxcEw0g_fkWowvv6';
 
-export const MY_TELEGRAM_ID = 8499249541;
+export const MY_TELEGRAM_ID = "";
 export const BOT_USERNAME = 'OmoriDiarybot';
 
 export const NOTES_TABLE = 'notes';
