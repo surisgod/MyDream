@@ -9,9 +9,14 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    .header-hidden {
-    transform: translateY(-100%);
+    /* Плавное скрытие верхней части */
+    .header-top-hidden {
+      transform: translateY(-100%);
+      opacity: 0;
+      pointer-events: none;
+      margin-bottom: -1rem; /* убираем лишний отступ при скрытии */
     }
+
     .custom-scrollbar::-webkit-scrollbar { height: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 4px; }
@@ -36,9 +41,11 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
 
   <!-- Липкая шапка -->
-  <header id="mainHeader" class="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4 transition-transform duration-300 ease-in-out">
+  <header class="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4">
     <div class="max-w-3xl mx-auto px-4 space-y-3">
-      <div class="flex justify-between items-center">
+      
+      <!-- ТОЛЬКО ЭТА ЧАСТЬ БУДЕТ ПРЯТАТЬСЯ -->
+      <div id="headerTop" class="flex justify-between items-center transition-all duration-300 ease-in-out">
         <h1 class="text-xl font-bold text-purple-400">📖 Мой дневник</h1>
         <div class="flex items-center space-x-3">
           <span id="userInfo" class="text-xs text-slate-400"></span>
@@ -48,21 +55,25 @@
         </div>
       </div>
 
-      <!-- Переключатель вкладок: Лента / Календарь -->
-      <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-        <button id="tabFeedBtn" onclick="switchTab('feed')" class="flex-1 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white transition">Лента записей</button>
-        <button id="tabCalBtn" onclick="switchTab('calendar')" class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition">Календарь и Статистика</button>
+      <!-- ЭТА ЧАСТЬ (вкладки, поиск, теги) ВСЕГДА ОСТАЕТСЯ НА ЭКРАНЕ -->
+      <div id="headerStickyBottom" class="space-y-3">
+        <!-- Переключатель вкладок: Лента / Календарь -->
+        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <button id="tabFeedBtn" onclick="switchTab('feed')" class="flex-1 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white transition">Лента записей</button>
+          <button id="tabCalBtn" onclick="switchTab('calendar')" class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition">Календарь и Статистика</button>
+        </div>
+
+        <!-- Поиск -->
+        <div id="searchWrapper" class="flex gap-2">
+          <input type="text" id="searchInput" placeholder="Поиск по тексту, числу, месяцу или году..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500">
+        </div>
+
+        <!-- Панель тегов -->
+        <div id="tagsContainer" class="flex gap-2 overflow-x-auto custom-scrollbar pb-1 text-xs">
+          <button onclick="filterByTag(null)" class="tag-btn bg-purple-600 text-white px-3 py-1 rounded-full shrink-0 font-medium transition">Все</button>
+        </div>
       </div>
 
-      <!-- Поиск -->
-      <div id="searchWrapper" class="flex gap-2">
-        <input type="text" id="searchInput" placeholder="Поиск по тексту, числу, месяцу или году..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500">
-      </div>
-
-      <!-- Панель тегов -->
-      <div id="tagsContainer" class="flex gap-2 overflow-x-auto custom-scrollbar pb-1 text-xs">
-        <button onclick="filterByTag(null)" class="tag-btn bg-purple-600 text-white px-3 py-1 rounded-full shrink-0 font-medium transition">Все</button>
-      </div>
     </div>
   </header>
 
@@ -150,7 +161,7 @@
       </div>
       
       <div class="relative">
-        <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." ... class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500 custom-scrollbar"></textarea>
+        <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." oninput="handleTextDraftInput()" onpaste="handlePaste(event)" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500 custom-scrollbar"></textarea>
         <div id="charCount" class="absolute bottom-3 right-3 text-[10px] text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded">0 симв. / 0 слов</div>
       </div>
 
@@ -454,7 +465,6 @@
       renderModalImage();
     }
 
-    // Открытие увеличенного фото по клику
     function openImageModal(url) {
       const modal = document.getElementById('imageModal');
       const img = document.getElementById('modalFullImage');
@@ -731,18 +741,18 @@
     }
 
     let lastScrollTop = 0;
-    const header = document.getElementById('mainHeader');
-    const scrollThreshold = 40; // Чувствительность скролла (в пикселях)
+    const headerTop = document.getElementById('headerTop');
+    const scrollThreshold = 40; // Порог в пикселях
 
     window.addEventListener('scroll', function() {
         let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
-        // Если скроллим вниз и прошли порог — прячем шапку
+        // Прячем только верхнюю часть при прокрутке вниз
         if (scrollTop > lastScrollTop && scrollTop > scrollThreshold) {
-            header.classList.add('header-hidden');
+            headerTop.classList.add('header-top-hidden');
         } else {
-            // Если скроллим наверх — показываем шапку обратно
-            header.classList.remove('header-hidden');
+            // Возвращаем при прокрутке наверх
+            headerTop.classList.remove('header-top-hidden');
         }
         
         lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
