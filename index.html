@@ -296,10 +296,10 @@
       }
 
       if (currentEditingId === null) {
-        // РЕЖИМ СОЗДАНИЯ НОВОЙ ЗАПИСИ
+        // РЕЖИМ СОЗДАНИЯ НОВОЙ ЗАПИСИ (отправляем только текст, без лишних id)
         const { error } = await supabaseClient
           .from('notes')
-          .insert([{ text: text, telegram_id: MY_TELEGRAM_ID }]);
+          .insert([{ text: text }]);
 
         if (!error) {
           closeModal();
