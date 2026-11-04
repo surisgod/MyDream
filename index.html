@@ -9,19 +9,10 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    /* Надежное скрытие без скачков высоты */
-    .header-top-hidden {
-      opacity: 0;
-      visibility: hidden;
-      height: 0;
-      overflow: hidden;
-      margin: 0;
-      padding: 0;
-      pointer-events: none;
-    }
-
-    #headerTop {
-      transition: opacity 0.2s ease, transform 0.2s ease;
+    /* Шапка фиксирована и прячется через transform — высота страницы не меняется */
+    #mainHeader {
+      transition: transform 0.25s ease;
+      will-change: transform;
     }
 
     .custom-scrollbar::-webkit-scrollbar { height: 4px; }
@@ -48,11 +39,11 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
 
   <!-- Липкая шапка -->
-  <header class="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4">
+  <header id="mainHeader" class="fixed top-0 inset-x-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4">
     <div class="max-w-3xl mx-auto px-4 space-y-3">
       
       <!-- ЭТА ЧАСТЬ БУДЕТ ПРЯТАТЬСЯ (Заголовок + Переключатель вкладок) -->
-      <div id="headerTop" class="space-y-3 transition-all duration-300 ease-in-out overflow-hidden">
+      <div id="headerTop" class="space-y-3">
         <div class="flex justify-between items-center">
           <h1 class="text-xl font-bold text-purple-400">📖 Мой дневник</h1>
           <div class="flex items-center space-x-3">
@@ -85,6 +76,8 @@
 
     </div>
   </header>
+  <!-- Распорка: держит место под фиксированной шапкой -->
+  <div id="headerSpacer"></div>
 
   <div class="max-w-3xl mx-auto px-4 py-6">
     <!-- Вкладка 1: Лента -->
@@ -753,28 +746,46 @@
     }
 
 
-    // ЛОГИКА СКРЫТИЯ ВЕРХНЕЙ ЧАСТИ ПРИ СКРОЛЛЕ (Без дребезга)
-    let lastScrollTop = 0;
+    // ЛОГИКА СКРЫТИЯ ВЕРХНЕЙ ЧАСТИ ПРИ СКРОЛЛЕ (без смещения контента)
+    const mainHeader = document.getElementById('mainHeader');
+    const headerSpacer = document.getElementById('headerSpacer');
     const headerTop = document.getElementById('headerTop');
-    const scrollThreshold = 60; 
+    const scrollThreshold = 60;
+    const scrollDelta = 8;
+    let headerHidden = false;
+    let hideOffset = 0;
+    let lastScrollTop = 0;
+
+    function applyHeaderTransform() {
+      mainHeader.style.transform = headerHidden ? `translateY(-${hideOffset}px)` : 'translateY(0)';
+    }
+
+    function measureHeader() {
+      headerSpacer.style.height = mainHeader.offsetHeight + 'px';
+      hideOffset = headerTop.offsetHeight + 12; // 12px = space-y-3
+      applyHeaderTransform();
+    }
+
+    measureHeader();
+    new ResizeObserver(measureHeader).observe(mainHeader);
+    window.addEventListener('resize', measureHeader);
 
     window.addEventListener('scroll', function() {
-        let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const y = Math.max(0, window.pageYOffset || document.documentElement.scrollTop);
+      const dy = y - lastScrollTop;
 
-        // Если скроллим вниз и прошли порог — скрываем (если еще не скрыто)
-        if (scrollTop > lastScrollTop && scrollTop > scrollThreshold) {
-            if (!headerTop.classList.contains('header-top-hidden')) {
-                headerTop.classList.add('header-top-hidden');
-            }
-        } 
-        // Если скроллим наверх — показываем обратно
-        else if (scrollTop < lastScrollTop) {
-            if (headerTop.classList.contains('header-top-hidden')) {
-                headerTop.classList.remove('header-top-hidden');
-            }
-        }
-        
-        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+      if (y <= 0) {
+        headerHidden = false;
+      } else if (Math.abs(dy) < scrollDelta) {
+        return; // мелкое движение — копим, не реагируем
+      } else if (dy > 0 && y > scrollThreshold) {
+        headerHidden = true;
+      } else if (dy < 0) {
+        headerHidden = false;
+      }
+
+      lastScrollTop = y;
+      applyHeaderTransform();
     }, { passive: true });
   </script>
 </body>
