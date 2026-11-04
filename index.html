@@ -9,15 +9,19 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    /* Плавное скрытие верхней части (заголовок + вкладки) с подъемом */
+    /* Надежное скрытие без скачков высоты */
     .header-top-hidden {
-      transform: translateY(-100%);
-      max-height: 0;
       opacity: 0;
+      visibility: hidden;
+      height: 0;
       overflow: hidden;
       margin: 0;
       padding: 0;
       pointer-events: none;
+    }
+
+    #headerTop {
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
     .custom-scrollbar::-webkit-scrollbar { height: 4px; }
@@ -748,26 +752,26 @@
       }
     }
 
-    // ЛОГИКА СКРЫТИЯ ВЕРХНЕЙ ЧАСТИ ПРИ СКРОЛЛЕ
+
+    // ЛОГИКА СКРЫТИЯ ВЕРХНЕЙ ЧАСТИ ПРИ СКРОЛЛЕ (Без дребезга)
     let lastScrollTop = 0;
     const headerTop = document.getElementById('headerTop');
-    const scrollThreshold = 100; // Увеличили порог чувствительности
-    const delta = 15; // Минимальное расстояние скролла для срабатывания
+    const scrollThreshold = 60; 
 
     window.addEventListener('scroll', function() {
         let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
-        // Игнорируем слишком маленькие движения (дребезг скролла)
-        if (Math.abs(lastScrollTop - scrollTop) <= delta) {
-            return;
-        }
-
+        // Если скроллим вниз и прошли порог — скрываем (если еще не скрыто)
         if (scrollTop > lastScrollTop && scrollTop > scrollThreshold) {
-            // Уверенный скролл вниз — скрываем заголовок и вкладки
-            headerTop.classList.add('header-top-hidden');
-        } else if (scrollTop < lastScrollTop) {
-            // Уверенный скролл наверх — возвращаем обратно
-            headerTop.classList.remove('header-top-hidden');
+            if (!headerTop.classList.contains('header-top-hidden')) {
+                headerTop.classList.add('header-top-hidden');
+            }
+        } 
+        // Если скроллим наверх — показываем обратно
+        else if (scrollTop < lastScrollTop) {
+            if (headerTop.classList.contains('header-top-hidden')) {
+                headerTop.classList.remove('header-top-hidden');
+            }
         }
         
         lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
