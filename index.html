@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Подключаем Marked.js для красивого рендеринга Markdown -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     .custom-scrollbar::-webkit-scrollbar { height: 4px; }
@@ -15,7 +14,6 @@
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
 
-    /* Стили для отрендеренного Markdown в ленте */
     .markdown-body h3 { font-size: 1.1rem; font-weight: bold; color: #c084fc; margin-top: 0.5rem; margin-bottom: 0.25rem; }
     .markdown-body p { margin-bottom: 0.5rem; line-height: 1.5; }
     .markdown-body ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
@@ -47,7 +45,7 @@
         <button id="tabCalBtn" onclick="switchTab('calendar')" class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition">Календарь и Статистика</button>
       </div>
 
-      <!-- Поиск (активен только в режиме ленты) -->
+      <!-- Поиск -->
       <div id="searchWrapper" class="flex gap-2">
         <input type="text" id="searchInput" placeholder="Поиск по тексту, числу, месяцу или году..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500">
       </div>
@@ -67,7 +65,6 @@
 
     <!-- Вкладка 2: Календарь и Статистика -->
     <div id="calendarContainer" class="hidden space-y-6">
-      <!-- Переключатель подвкладок календаря -->
       <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 max-w-xs mx-auto">
         <button id="subTabCalBtn" onclick="switchCalSubTab('calendar')" class="flex-1 py-1 text-xs font-medium rounded-lg bg-purple-600 text-white transition">Календарь</button>
         <button id="subTabStatBtn" onclick="switchCalSubTab('stats')" class="flex-1 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition">Статистика слов</button>
@@ -85,20 +82,16 @@
             <button onclick="changeMonth(1)" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg transition">→</button>
           </div>
         </div>
-        <!-- Дни недели -->
         <div class="grid grid-cols-7 gap-1 text-center text-xs text-slate-500 font-medium mb-2">
           <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
         </div>
-        <!-- Сетка дней -->
         <div id="calGrid" class="grid grid-cols-7 gap-1.5"></div>
       </div>
 
-      <!-- Блок статистики слов -->
+      <!-- Блок статистики -->
       <div id="statsViewBlock" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
         <h3 class="font-bold text-purple-400 text-base">📊 Статистика активности и слов</h3>
-        <div id="statsContent" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <!-- Заполняется динамически -->
-        </div>
+        <div id="statsContent" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
       </div>
     </div>
   </div>
@@ -111,7 +104,6 @@
         <button onclick="closeModal()" class="text-slate-400 hover:text-white">✕</button>
       </div>
 
-      <!-- Выбор эмодзи-настроения -->
       <div class="flex items-center space-x-2">
         <span class="text-xs text-slate-400">Настроение:</span>
         <div class="flex gap-1.5" id="emojiSelector">
@@ -124,7 +116,6 @@
         </div>
       </div>
 
-      <!-- Обновленная панель инструментов Markdown -->
       <div class="flex flex-wrap items-center gap-1 bg-slate-950 border border-slate-800 p-1.5 rounded-xl text-slate-300">
         <button onclick="insertMarkdown('**', '**')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded transition" title="Жирный">B</button>
         <button onclick="insertMarkdown('*', '*')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs italic rounded transition" title="Курсив">I</button>
@@ -137,7 +128,6 @@
         <button onclick="insertMarkdown('- ', '')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-xs rounded transition" title="Список">• Список</button>
       </div>
 
-      <!-- Блок управления изображением в вебе -->
       <div class="space-y-2">
         <div id="modalImageContainer"></div>
         <div class="flex items-center space-x-2">
@@ -165,6 +155,14 @@
     </div>
   </div>
 
+  <!-- Модальное окно для увеличенного просмотра фото -->
+  <div id="imageModal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center p-4 z-50 cursor-pointer" onclick="closeImageModal()">
+    <div class="relative max-w-4xl max-h-full flex items-center justify-center">
+      <button onclick="closeImageModal()" class="absolute -top-10 right-0 text-white text-xl bg-slate-800/80 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
+      <img id="modalFullImage" src="" class="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-slate-800">
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://oblwxfefeltikdkmodon.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_bhvGHwhyHMBsG7amxcEw0g_fkWowvv6';
@@ -182,8 +180,8 @@
     let selectedTag = null;
     let searchQuery = '';
     let openDays = {};
-    let currentTab = 'feed'; // 'feed' или 'calendar'
-    let currentCalSubTab = 'calendar'; // 'calendar' или 'stats'
+    let currentTab = 'feed';
+    let currentCalSubTab = 'calendar';
     let selectedEmoji = '😊';
     let currentPhotoUrl = null;
     
@@ -268,8 +266,6 @@
         searchWrapper.classList.add('hidden');
         tagsContainer.classList.add('hidden');
         calendarContainer.classList.remove('hidden');
-        
-        // Сброс даты на сегодня при открытии вкладки календаря
         resetCalendarToCurrent();
       }
     }
@@ -391,7 +387,6 @@
       event.currentTarget.classList.add('border', 'border-purple-500', 'bg-purple-950/50');
     }
 
-    // Загрузка фото через файл или буфер обмена
     async function handleImageUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -450,7 +445,21 @@
       renderModalImage();
     }
 
-    // Отрисовка ленты с полноценным Markdown и аккуратными картинками
+    // Открытие увеличенного фото по клику
+    function openImageModal(url) {
+      const modal = document.getElementById('imageModal');
+      const img = document.getElementById('modalFullImage');
+      img.src = url;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('imageModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
     function renderNotes() {
       const container = document.getElementById('notesContainer');
       const groups = groupByDate(allNotes);
@@ -511,7 +520,7 @@
 
                     ${note.photo_url ? `
                       <div class="my-2">
-                        <img src="${note.photo_url}" class="rounded-xl max-h-80 w-auto max-w-full object-contain bg-slate-950 border border-slate-800 shadow-md">
+                        <img src="${note.photo_url}" onclick="openImageModal('${note.photo_url}')" title="Нажмите, чтобы увеличить" class="rounded-xl max-h-80 w-auto max-w-full object-contain bg-slate-950 border border-slate-800 shadow-md cursor-pointer hover:opacity-90 transition">
                       </div>
                     ` : ''}
 
@@ -527,7 +536,6 @@
       }).join('');
     }
 
-    // Отрисовка календаря
     function renderCalendar() {
       const year = calCurrentDate.getFullYear();
       const month = calCurrentDate.getMonth();
@@ -567,7 +575,6 @@
       document.getElementById('calGrid').innerHTML = html;
     }
 
-    // Отрисовка статистики слов
     function renderStats() {
       let totalWords = 0;
       let totalChars = 0;
