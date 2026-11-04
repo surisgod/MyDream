@@ -751,21 +751,27 @@
     // ЛОГИКА СКРЫТИЯ ВЕРХНЕЙ ЧАСТИ ПРИ СКРОЛЛЕ
     let lastScrollTop = 0;
     const headerTop = document.getElementById('headerTop');
-    const scrollThreshold = 40;
+    const scrollThreshold = 100; // Увеличили порог чувствительности
+    const delta = 15; // Минимальное расстояние скролла для срабатывания
 
     window.addEventListener('scroll', function() {
         let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
+        // Игнорируем слишком маленькие движения (дребезг скролла)
+        if (Math.abs(lastScrollTop - scrollTop) <= delta) {
+            return;
+        }
+
         if (scrollTop > lastScrollTop && scrollTop > scrollThreshold) {
-            // При скролле вниз — скрываем заголовок и вкладки
+            // Уверенный скролл вниз — скрываем заголовок и вкладки
             headerTop.classList.add('header-top-hidden');
-        } else {
-            // При скролле наверх — возвращаем обратно
+        } else if (scrollTop < lastScrollTop) {
+            // Уверенный скролл наверх — возвращаем обратно
             headerTop.classList.remove('header-top-hidden');
         }
         
         lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
-    });
+    }, { passive: true });
   </script>
 </body>
 </html>
