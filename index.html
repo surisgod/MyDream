@@ -8,13 +8,20 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    /* Убираем стандартный скроллбар и делаем его аккуратным */
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
+
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 4px;
     }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(168, 85, 247, 0.4);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(168, 85, 247, 0.8);
     }
   </style>
 </head>
@@ -39,7 +46,7 @@
       </div>
 
       <!-- Панель тегов (без уродливого слайдера, чистый скролл) -->
-      <div id="tagsContainer" class="flex gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
+      <div id="tagsContainer" class="flex gap-2 overflow-x-auto custom-scrollbar pb-2 text-xs">
         <button onclick="filterByTag(null)" class="tag-btn bg-purple-600 text-white px-3 py-1 rounded-full shrink-0 font-medium transition">Все</button>
       </div>
     </div>
