@@ -1,4 +1,8 @@
 import os
+import asyncio
+import uuid
+import httpx
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types, F
 from supabase import create_client, Client
@@ -10,22 +14,46 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-# Тот же ID, что указан в index.html (MY_TELEGRAM_ID).
-# При желании можно переопределить через переменную OWNER_ID в .env
+RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
 OWNER_ID = int(os.getenv("OWNER_ID", "8499249541"))
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-app = FastAPI()
-
-# Все обработчики сообщений работают ТОЛЬКО для владельца.
-# Сообщения от любого другого ID не попадают ни в один обработчик,
-# поэтому бот молчит и ничего не делает.
-dp.message.filter(F.from_user.id == OWNER_ID)
 
 SECRET_REPLY = "🤫 Я сохраню это в секрете"
+
+
+# Функция фонового пинга для Render (ровно 72 раза каждые 10 минут)
+async def self_ping():
+    if not RENDER_URL:
+        print("⚠️ RENDER_EXTERNAL_URL не найден. Само-пинг не запущен.")
+        return
+
+    print("🚀 Фоновый пинг-сервис запущен.")
+    async with httpx.AsyncClient() as client:
+        for i in range(1, 73):  # Ровно 72 раза
+            await asyncio.sleep(600)  # 10 минут (600 секунд)
+            try:
+                response = await client.get(RENDER_URL)
+                print(f"🔄 Само-пинг #{i}/72 выполнен. Статус: {response.status_code}")
+            except Exception as e:
+                print(f"❌ Ошибка при само-пинге #{i}/72: {e}")
+    print("🏁 Цикл из 72 само-пингов завершен.")
+
+
+# Жизненный цикл FastAPI (запуск фоновой задачи при старте)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Запускаем пинг в фоновом режиме, чтобы он не блокировал запуск сервера
+    asyncio.create_task(self_ping())
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+# Все обработчики сообщений работают ТОЛЬКО для владельца.
+dp.message.filter(F.from_user.id == OWNER_ID)
 
 
 async def delete_user_message(message: types.Message):
@@ -36,35 +64,34 @@ async def delete_user_message(message: types.Message):
         print(f"Не удалось удалить сообщение: {e}")
 
 
-# Команда /start (стоит первой, иначе её перехватит обработчик текста)
+# Команда /start
 @dp.message(F.text == "/start")
 async def start_cmd(message: types.Message):
     await message.answer("Привет! Отправь мне текст или фото, и я запишу это в твой личный дневник. 📖")
 
 
-# 1. Обработка обычного текста (команды вроде /start игнорируем)
+# 1. Обработка обычного текста
 @dp.message(F.text & ~F.text.startswith("/"))
 async def handle_text(message: types.Message):
-    # Сохраняем текст в таблицу notes
     supabase.table("notes").insert({
         "text": message.text,
         "photo_url": None
     }).execute()
 
-    # Сначала сохранили, и только потом удаляем сообщение
     await delete_user_message(message)
     await message.answer(SECRET_REPLY)
 
 
-# 2. Обработка фотографий (с текстом или без)
+# 2. Обработка фотографий (с уникальным именем через UUID)
 @dp.message(F.photo)
 async def handle_photo(message: types.Message):
     photo = message.photo[-1]  # Берем самое качественное фото
     file_info = await bot.get_file(photo.file_id)
     file_bytes = await bot.download_file(file_info.file_path)
 
-    # Путь для сохранения в Supabase Storage
-    filename = f"notes/{message.chat.id}/{photo.file_id}.jpg"
+    # Генерируем уникальное имя файла с помощью uuid4, чтобы исключить дублирование и ошибки
+    unique_filename = f"{uuid.uuid4()}.jpg"
+    filename = f"notes/{message.chat.id}/{unique_filename}"
 
     # Загружаем в бакет diary_photos
     supabase.storage.from_("diary_photos").upload(
