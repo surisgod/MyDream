@@ -13,6 +13,12 @@
     .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
+    
+    /* Тонкий скролл для текстового поля */
+    #modalText::-webkit-scrollbar { width: 4px; }
+    #modalText::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
+    #modalText::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 4px; }
+    #modalText::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
 
     .markdown-body h3 { font-size: 1.1rem; font-weight: bold; color: #c084fc; margin-top: 0.5rem; margin-bottom: 0.25rem; }
     .markdown-body p { margin-bottom: 0.5rem; line-height: 1.5; }
@@ -141,7 +147,7 @@
       </div>
       
       <div class="relative">
-        <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." oninput="handleTextDraftInput()" onpaste="handlePaste(event)" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500"></textarea>
+        <textarea id="modalText" rows="6" placeholder="Введите текст заметки..." ... class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-purple-500 custom-scrollbar"></textarea>
         <div id="charCount" class="absolute bottom-3 right-3 text-[10px] text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded">0 симв. / 0 слов</div>
       </div>
 
