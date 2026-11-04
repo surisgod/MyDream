@@ -214,6 +214,9 @@
 
     const tgUser = tg.initDataUnsafe?.user;
     if (tgUser && tgUser.id) {
+      if (window.location.search || window.location.hash.includes('tgWebAppData')) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       initApp(tgUser);
     } else {
       const savedUser = JSON.parse(localStorage.getItem('tg_user') || 'null');
