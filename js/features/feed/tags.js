@@ -31,6 +31,7 @@ export function renderTags() {
 
 export function filterByTag(tag) {
   state.selectedTag = tag;
+  state.currentPage = 1;
   renderTags();
   renderNotes();
 }

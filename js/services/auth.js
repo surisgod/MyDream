@@ -17,21 +17,15 @@ export function resolveCurrentUser() {
 }
 
 
-export function renderLoginScreen() {
-  document.querySelector('header').style.display = 'none';
-  document.getElementById('notesContainer').innerHTML = `
-    <div class="text-center py-16 space-y-4">
-      <h2 class="text-lg font-medium text-slate-300">Авторизуйтесь для доступа к дневнику</h2>
-      <div id="telegramLoginButton" class="flex justify-center pt-2"></div>
-    </div>
-  `;
+// Кнопка «Войти через Telegram» — рисуется внутри окна входа (см. features/auth/loginModal.js)
+export function mountTelegramWidget(container) {
   const script = document.createElement('script');
   script.async = true;
   script.src = "https://telegram.org/js/telegram-widget.js?22";
   script.setAttribute('data-telegram-login', BOT_USERNAME);
   script.setAttribute('data-size', 'large');
   script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-  document.getElementById('telegramLoginButton').appendChild(script);
+  container.appendChild(script);
 }
 
 // Вызывается виджетом Telegram, поэтому должна быть глобальной

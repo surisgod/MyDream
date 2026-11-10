@@ -57,6 +57,7 @@ export function openDayFromCalendar(dateStr) {
   switchTab('feed');
   state.openDays[dateStr] = true;
   state.searchQuery = dateStr.toLowerCase();
+  state.currentPage = 1;
   document.getElementById('searchInput').value = dateStr;
   renderNotes();
 }

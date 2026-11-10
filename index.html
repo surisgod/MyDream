@@ -13,6 +13,24 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
 
+  <!-- Визитка для гостей (плейсхолдер). Аватарка открывает окно входа -->
+  <section id="visitCard" class="hidden min-h-[calc(100vh-5rem)] flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center space-y-5 shadow-2xl">
+      <button data-action="openLoginModal" aria-label="Войти" class="mx-auto w-24 h-24 rounded-full bg-slate-800 border-2 border-purple-600/60 hover:border-purple-400 flex items-center justify-center text-4xl transition">👤</button>
+      <div class="space-y-1">
+        <h1 class="text-xl font-bold text-purple-400">Здесь будет визитка</h1>
+        <p class="text-sm text-slate-500">Плейсхолдер: имя, описание и контакты появятся позже.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Статус загрузки / ошибки авторизации -->
+  <div id="appLoader" class="hidden text-center py-24 text-slate-500"></div>
+
+  <!-- Дневник: скрыт, пока человек не авторизован -->
+  <div id="appRoot" class="hidden">
+
+
   <!-- Липкая шапка -->
   <header id="mainHeader" class="fixed top-0 inset-x-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 z-30 py-4">
     <div class="max-w-3xl mx-auto px-4 space-y-3">
@@ -97,6 +115,8 @@
     </div>
   </div>
 
+  </div><!-- /appRoot -->
+
   <!-- Модальное окно редактирования / создания -->
   <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full max-h-full overflow-y-auto p-6 space-y-4 shadow-2xl">
@@ -160,6 +180,18 @@
     <span id="viewerCounter" class="hidden absolute top-4 left-4 z-10 text-xs text-white bg-black/60 px-2.5 py-1 rounded-full"></span>
     <button data-action="closeImageModal" class="absolute top-4 right-4 z-10 text-white text-xl bg-slate-800/80 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
     <div id="viewerScroller" class="flex h-full w-full overflow-x-auto snap-x snap-mandatory no-scrollbar"></div>
+  </div>
+
+  <!-- Окно входа (только для автора сайта) -->
+  <div id="loginModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50" data-action="closeLoginModalOnBackdrop">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-center">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-purple-400">Вход</h3>
+        <button data-action="closeLoginModal" aria-label="Закрыть" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+      <p class="text-sm text-slate-400">Это окно нужно только для автора сайта, вы можете ничего не нажимать тут.</p>
+      <div id="telegramLoginButton" class="flex justify-center min-h-[40px] pt-2"></div>
+    </div>
   </div>
 
   <script type="module" src="js/main.js"></script>

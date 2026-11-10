@@ -84,6 +84,7 @@ export async function saveCurrentNote() {
       clearDraft();
       closeModal();
       state.openDays[formatDateRu(new Date())] = true;
+      state.currentPage = 1;
       await loadNotes();
     } else {
       alert('Ошибка при создании записи');

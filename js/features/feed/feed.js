@@ -1,6 +1,7 @@
 import { state } from '../../state.js';
 import { FAV_TAG } from '../../config.js';
-import { groupByDate } from '../../utils/date.js';
+import { MONTH_NAMES, groupByDate } from '../../utils/date.js';
+import { renderPagination } from '../../utils/Paginator.js';
 import { renderNoteCard } from './noteCard.js';
 
 function matchesFilters(note, dateStr) {
@@ -40,6 +41,21 @@ function renderDayGroup(date, notesList) {
   `;
 }
 
+// Одна страница = один месяц (только те месяцы, где есть записи после фильтров).
+// Месяцы идут от новых к старым, страница 1 — самый свежий месяц.
+function groupByMonth(filteredGroups) {
+  const months = new Map();
+  Object.entries(filteredGroups).forEach(([dateStr, notes]) => {
+    const d = new Date(notes[0].created_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!months.has(key)) {
+      months.set(key, { title: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, groups: {} });
+    }
+    months.get(key).groups[dateStr] = notes;
+  });
+  return [...months.values()];
+}
+
 export function renderNotes() {
   const container = document.getElementById('notesContainer');
   const groups = groupByDate(state.allNotes);
@@ -57,9 +73,21 @@ export function renderNotes() {
     return;
   }
 
-  container.innerHTML = Object.keys(filteredGroups)
-    .map(date => renderDayGroup(date, filteredGroups[date]))
-    .join('');
+  const pages = groupByMonth(filteredGroups);
+  state.currentPage = Math.min(Math.max(state.currentPage, 1), pages.length);
+  const page = pages[state.currentPage - 1];
+
+  container.innerHTML = `
+    <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1">${page.title}</h2>
+    ${Object.keys(page.groups).map(date => renderDayGroup(date, page.groups[date])).join('')}
+    ${renderPagination(state.currentPage, pages.length)}
+  `;
+}
+
+export function goToPage(page) {
+  state.currentPage = page;
+  renderNotes();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 export function toggleDay(dateStr) {
@@ -70,6 +98,7 @@ export function toggleDay(dateStr) {
 export function initSearch() {
   document.getElementById('searchInput').addEventListener('input', (e) => {
     state.searchQuery = e.target.value.toLowerCase().trim();
+    state.currentPage = 1;
     if (state.searchQuery) {
       Object.keys(state.openDays).forEach(d => state.openDays[d] = true);
     }
@@ -79,4 +108,5 @@ export function initSearch() {
 
 export const actions = {
   toggleDay: (el) => toggleDay(el.dataset.date),
+  goToPage: (el) => goToPage(Number(el.dataset.page)),
 };

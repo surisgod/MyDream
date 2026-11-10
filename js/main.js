@@ -1,12 +1,13 @@
 import { state } from './state.js';
 import { registerActions, initActionDelegation } from './core/actions.js';
-import { resolveCurrentUser, renderLoginScreen } from './services/auth.js';
+import { resolveCurrentUser } from './services/auth.js';
 import { authenticate } from './services/session.js';
 import { clearUser } from './services/localStore.js';
 
 import { initStickyHeader } from './ui/stickyHeader.js';
 import { loadNotes } from './features/notes/notesController.js';
 
+import { actions as loginActions, initLoginModal } from './features/auth/loginModal.js';
 import { actions as navigationActions } from './features/navigation.js';
 import { actions as feedActions, initSearch } from './features/feed/feed.js';
 import { actions as tagsActions } from './features/feed/tags.js';
@@ -21,6 +22,7 @@ import { actions as viewerActions, initImageViewer } from './features/viewer/ima
 
 // Новый модуль подключается так: импортировать его actions/init и добавить сюда.
 registerActions({
+  ...loginActions,
   ...navigationActions,
   ...feedActions,
   ...tagsActions,
@@ -34,22 +36,41 @@ registerActions({
   ...viewerActions,
 });
 
+const show = (id) => document.getElementById(id).classList.remove('hidden');
+const hide = (id) => document.getElementById(id).classList.add('hidden');
+
+// Гость: видит только визитку. Дневник и запросы к данным не запускаются.
+function showVisitCard() {
+  hide('appLoader');
+  hide('appRoot');
+  show('visitCard');
+}
+
+function showStatus(text, isError = false) {
+  const el = document.getElementById('appLoader');
+  el.textContent = text;
+  el.className = `text-center py-24 ${isError ? 'text-red-400' : 'text-slate-500'}`;
+  hide('visitCard');
+  hide('appRoot');
+}
+
 function showAuthError(error, credentials) {
   console.error(error);
-  // сохранённый вход устарел — просим войти заново
+  // сохранённый вход устарел — возвращаем на визитку, войти можно через аватарку
   if (credentials.widget && error.status === 401) {
     clearUser();
-    renderLoginScreen();
+    showVisitCard();
     return;
   }
   const denied = error.status === 401 || error.status === 403;
-  document.querySelector('header').style.display = 'none';
-  document.getElementById('notesContainer').innerHTML = denied
-    ? `<p class="text-red-400 text-center py-10">⛔ Доступ запрещен</p>`
-    : `<p class="text-red-400 text-center py-10">Не удалось подключиться к серверу авторизации. Попробуйте позже.</p>`;
+  showStatus(denied
+    ? '⛔ Доступ запрещен'
+    : 'Не удалось подключиться к серверу авторизации. Попробуйте позже.', true);
 }
 
+// Дневник загружается только после успешной авторизации
 async function startApp({ user, credentials }) {
+  showStatus('Загрузка…');
   try {
     await authenticate(credentials);
   } catch (error) {
@@ -58,8 +79,11 @@ async function startApp({ user, credentials }) {
   }
 
   state.user = user;
+  hide('appLoader');
+  show('appRoot');
   document.getElementById('userInfo').innerHTML = `👤 ${user.first_name || 'Владелец'}`;
 
+  initStickyHeader();   // после показа, чтобы шапка измерилась корректно
   initSearch();
   initEditor();
   initPhotoUploader();
@@ -70,8 +94,8 @@ async function startApp({ user, credentials }) {
 }
 
 initActionDelegation();
-initStickyHeader();
+initLoginModal();
 
 const session = resolveCurrentUser();
 if (session) startApp(session);
-else renderLoginScreen();
+else showVisitCard();

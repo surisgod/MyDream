@@ -6,6 +6,7 @@ export const state = {
   searchQuery: '',
   openDays: {},
   currentTab: 'feed',
+  currentPage: 1,        // страница ленты (1 = самый свежий месяц)
   currentCalSubTab: 'calendar',
   selectedEmoji: null,
   currentPhotos: [],
