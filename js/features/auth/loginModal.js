@@ -3,7 +3,11 @@ import { mountTelegramWidget } from '../../services/auth.js';
 // Окно входа для автора сайта. Кнопка Telegram подгружается только при первом открытии.
 let widgetMounted = false;
 
-export function openLoginModal() {
+// message — необязательная пометка в окне (например, «вход устарел»)
+export function openLoginModal(message = '') {
+  const note = document.getElementById('loginModalMessage');
+  note.textContent = message;
+  note.classList.toggle('hidden', !message);
   const modal = document.getElementById('loginModal');
   modal.classList.remove('hidden');
   modal.classList.add('flex');

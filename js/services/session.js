@@ -46,3 +46,11 @@ export async function authenticate(newCredentials) {
   token = null;
   await getAccessToken();
 }
+
+// Забывает токен и данные входа в памяти (при выходе из аккаунта)
+export function clearSession() {
+  credentials = null;
+  token = null;
+  expiresAt = 0;
+  inFlight = null;
+}

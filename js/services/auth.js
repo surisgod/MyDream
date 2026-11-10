@@ -1,4 +1,4 @@
-import { BOT_USERNAME } from '../config.js';
+import { BOT_USERNAME, NOTES_URL } from '../config.js';
 import { getTelegramUser, getInitData } from './telegram.js';
 import { getSavedUser, saveUser } from './localStore.js';
 
@@ -31,5 +31,5 @@ export function mountTelegramWidget(container) {
 // Вызывается виджетом Telegram, поэтому должна быть глобальной
 window.onTelegramAuth = function (user) {
   saveUser(user);
-  location.reload();
+  location.href = NOTES_URL;
 };

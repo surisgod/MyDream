@@ -15,4 +15,16 @@ export const MAX_PHOTOS = 4;
 export const MAX_TOTAL_BYTES = 40 * 1024 * 1024; // 40 МБ на запись
 export const FAV_TAG = '__fav__';
 
-export const STORAGE_KEYS = { user: 'tg_user', draft: 'diary_draft' };
+// Всё, что сайт хранит в браузере, лежит под префиксом. Хранилище общее для всех сайтов
+// с тем же адресом (имя.github.io), поэтому при выходе удаляются только ключи с этими префиксами.
+export const STORAGE_PREFIX = 'mydream:';
+export const STORAGE_KEYS = { user: `${STORAGE_PREFIX}tg_user`, draft: `${STORAGE_PREFIX}diary_draft` };
+// Ключи, которые клиент Supabase может создать сам (sb-<проект>-...) — тоже наши
+const SUPABASE_REF = new URL(SUPABASE_URL).hostname.split('.')[0];
+export const OWN_KEY_PREFIXES = [STORAGE_PREFIX, `sb-${SUPABASE_REF}-`];
+// Названия из прошлой версии сайта (без префикса) — переносятся один раз при первом запуске
+export const LEGACY_KEYS = { tg_user: STORAGE_KEYS.user, diary_draft: STORAGE_KEYS.draft };
+
+// Страницы сайта (адреса относительно любой страницы: visit/ и notes/ лежат рядом)
+export const VISIT_URL = '../visit/';
+export const NOTES_URL = '../notes/';
