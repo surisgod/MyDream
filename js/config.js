@@ -25,6 +25,9 @@ export const OWN_KEY_PREFIXES = [STORAGE_PREFIX, `sb-${SUPABASE_REF}-`];
 // Названия из прошлой версии сайта (без префикса) — переносятся один раз при первом запуске
 export const LEGACY_KEYS = { tg_user: STORAGE_KEYS.user, diary_draft: STORAGE_KEYS.draft };
 
-// Страницы сайта (адреса относительно любой страницы: visit/ и notes/ лежат рядом)
-export const VISIT_URL = '../visit/';
-export const NOTES_URL = '../notes/';
+// Страницы сайта. Адреса считаются от места этого файла (js/config.js), поэтому
+// одинаково работают с любой страницы и любой вложенности (visit/, notes/, notes/settings/).
+const SITE_ROOT = new URL('../', import.meta.url);
+export const VISIT_URL = new URL('visit/', SITE_ROOT).href;
+export const NOTES_URL = new URL('notes/', SITE_ROOT).href;
+export const SETTINGS_URL = new URL('notes/settings/', SITE_ROOT).href;

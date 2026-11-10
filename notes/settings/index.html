@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Настройки — Мой Дневник</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
+
+  <!-- Статус проверки входа / ошибки -->
+  <div id="appLoader" class="text-center py-24 space-y-4">
+    <p id="appLoaderText" class="text-slate-500">Загрузка…</p>
+    <a id="appLoaderBack" href="../../visit/" class="hidden inline-block text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-4 py-2 rounded-xl transition">На визитку</a>
+  </div>
+
+  <!-- Страница: скрыта, пока человек не авторизован -->
+  <div id="appRoot" class="hidden">
+    <header class="border-b border-slate-800 py-4">
+      <div class="max-w-3xl mx-auto px-4 flex justify-between items-center">
+        <a href="../" class="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl transition">← К дневнику</a>
+        <a href="../../visit/" class="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl transition">Выйти на визитку</a>
+      </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto px-4 py-6 space-y-6">
+      <h1 class="text-xl font-bold text-purple-400">⚙️ Настройки</h1>
+
+      <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <h2 class="text-sm font-semibold text-slate-300">Аккаунт</h2>
+        <p class="text-xs text-slate-500">Вы вошли как: <span id="accountName" class="text-slate-300"></span></p>
+        <button data-action="logout" class="w-full sm:w-auto px-4 py-2.5 bg-red-950/40 text-red-400 border border-red-900/50 rounded-xl text-sm hover:bg-red-900/40 transition">Выйти из аккаунта</button>
+        <p class="text-[11px] text-slate-600">Вход и всё, что сайт сохранил в браузере (в том числе черновик), будет удалено. Данные других сайтов не затрагиваются.</p>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="../../js/pages/settings.js"></script>
+</body>
+</html>

@@ -42,7 +42,7 @@
         <!-- Служебные кнопки -->
         <div class="flex justify-between items-center">
           <a href="../visit/" class="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl transition">← Выйти на визитку</a>
-          <button data-action="openSettings" class="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl transition">⚙️ Настройки</button>
+          <a href="settings/" class="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl transition">⚙️ Настройки</a>
         </div>
 
         <!-- Переключатель вкладок: Лента / Календарь уходит наверх -->
@@ -178,19 +178,6 @@
     <span id="viewerCounter" class="hidden absolute top-4 left-4 z-10 text-xs text-white bg-black/60 px-2.5 py-1 rounded-full"></span>
     <button data-action="closeImageModal" class="absolute top-4 right-4 z-10 text-white text-xl bg-slate-800/80 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
     <div id="viewerScroller" class="flex h-full w-full overflow-x-auto snap-x snap-mandatory no-scrollbar"></div>
-  </div>
-
-  <!-- Настройки -->
-  <div id="settingsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50" data-action="closeSettingsOnBackdrop">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
-      <div class="flex justify-between items-center">
-        <h3 class="font-bold text-purple-400">⚙️ Настройки</h3>
-        <button data-action="closeSettings" aria-label="Закрыть" class="text-slate-400 hover:text-white">✕</button>
-      </div>
-      <div class="space-y-2">
-        <button data-action="logout" class="w-full px-4 py-2.5 bg-red-950/40 text-red-400 border border-red-900/50 rounded-xl text-sm hover:bg-red-900/40 transition">Выйти из аккаунта</button>
-      </div>
-    </div>
   </div>
 
   <script type="module" src="../js/pages/notes.js"></script>
