@@ -18,17 +18,27 @@ export async function uploadPhoto(file) {
   return { url: filePath };
 }
 
+const REMOVE_CHUNK = 100;
+
 // Удаляет файлы из бакета. Принимает пути или старые публичные ссылки; чужие внешние ссылки пропускает.
-// Не бросает ошибок: если удалить не вышло, запись всё равно сохранена, а причина остаётся в консоли.
+// Возвращает, сколько файлов реально удалено. Ошибок не бросает: если удалить не вышло,
+// запись всё равно сохранена, а причина остаётся в консоли.
 export async function deletePhotos(urls) {
   const paths = [...new Set((urls || []).map(toStoragePath).filter(Boolean))];
-  if (!paths.length) return;
+  let removed = 0;
 
-  const { data, error } = await supabaseClient.storage.from(PHOTOS_BUCKET).remove(paths);
-  if (error) {
-    console.error('Не удалось удалить фото из хранилища', error);
-  } else if ((data || []).length < paths.length) {
-    // Supabase молча пропускает файлы, на удаление которых нет прав (политика DELETE для authenticated)
-    console.warn(`Удалено ${(data || []).length} из ${paths.length} фото — проверьте политику DELETE у бакета`, paths);
+  for (let i = 0; i < paths.length; i += REMOVE_CHUNK) {
+    const chunk = paths.slice(i, i + REMOVE_CHUNK);
+    const { data, error } = await supabaseClient.storage.from(PHOTOS_BUCKET).remove(chunk);
+    if (error) {
+      console.error('Не удалось удалить фото из хранилища', error);
+      continue;
+    }
+    removed += (data || []).length;
+    if ((data || []).length < chunk.length) {
+      // Supabase молча пропускает файлы, на удаление которых нет прав (политика DELETE для authenticated)
+      console.warn(`Удалено ${(data || []).length} из ${chunk.length} фото — проверьте политику DELETE у бакета`, chunk);
+    }
   }
+  return removed;
 }

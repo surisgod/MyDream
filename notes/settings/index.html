@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Настройки — Мой Дневник</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
@@ -26,6 +27,15 @@
 
     <main class="max-w-3xl mx-auto px-4 py-6 space-y-6">
       <h1 class="text-xl font-bold text-purple-400">⚙️ Настройки</h1>
+
+      <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <h2 class="text-sm font-semibold text-slate-300">Фото</h2>
+        <p class="text-xs text-slate-500">Удаляет из хранилища фото, которые не привязаны ни к одной записи (например, остались после удалённых записей). Фото, загруженные за последний час, не трогаются. Перед удалением будет вопрос с количеством.</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <button id="cleanupBtn" data-action="cleanupPhotos" class="px-4 py-2.5 bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-sm hover:bg-slate-700 transition disabled:opacity-50 disabled:pointer-events-none">Очистить неиспользуемые фото</button>
+          <span id="cleanupResult" class="text-xs text-slate-400" aria-live="polite"></span>
+        </div>
+      </section>
 
       <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
         <h2 class="text-sm font-semibold text-slate-300">Аккаунт</h2>

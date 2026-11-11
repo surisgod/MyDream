@@ -16,3 +16,21 @@ export const updateNote = (userId, id, fields) =>
 
 export const deleteNote = (userId, id) =>
   table().delete().eq('id', id).eq('user_id', userId);
+
+// photo_url всех записей, у которых есть фото. Читаем постранично: за один запрос Supabase
+// отдаёт не больше 1000 строк, и без этого ссылки из «хвоста» таблицы потерялись бы.
+// При любой ошибке бросает исключение — неполный список использовать нельзя.
+export async function fetchAllPhotoRefs() {
+  const PAGE = 1000;
+  const refs = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await table()
+      .select('photo_url')
+      .not('photo_url', 'is', null)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    refs.push(...data.map(row => row.photo_url));
+    if (data.length < PAGE) return refs;
+  }
+}
