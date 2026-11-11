@@ -11,5 +11,7 @@ export const state = {
   selectedEmoji: null,
   currentPhotos: [],
   isUploading: false,
+  sessionUploads: [],    // файлы, загруженные в бакет за время открытия окна редактора (ещё не сохранены в записи)
+  editorSession: 0,      // номер открытия окна: если изменился, пока шла загрузка, окно закрыли
   calCurrentDate: new Date(),
 };

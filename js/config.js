@@ -10,6 +10,7 @@ export const BOT_USERNAME = 'OmoriDiarybot';
 export const NOTES_TABLE = 'notes';
 export const PHOTOS_BUCKET = 'diary_photos';
 export const PHOTOS_PATH_PREFIX = 'notes/web_uploads';
+export const PHOTO_URL_TTL = 3600; // сколько секунд живёт временная ссылка на фото (бакет приватный)
 
 export const MAX_PHOTOS = 4;
 export const MAX_TOTAL_BYTES = 40 * 1024 * 1024; // 40 МБ на запись

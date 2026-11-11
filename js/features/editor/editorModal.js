@@ -3,6 +3,7 @@ import { insertNote, updateNote, deleteNote } from '../../services/notesApi.js';
 import { getDraft, saveDraft, clearDraft } from '../../services/localStore.js';
 import { formatDateRu } from '../../utils/date.js';
 import { parsePhotos, serializePhotos } from '../../utils/photos.js';
+import { deletePhotos } from '../../services/photoStorage.js';
 import { loadNotes } from '../notes/notesController.js';
 import { updateEmojiSelection } from './emoji.js';
 import { renderModalImage } from './photoUploader.js';
@@ -21,7 +22,22 @@ export function handleTextDraftInput() {
   }
 }
 
+// Каждое открытие окна — новая «сессия»: считаем, какие фото в нём загружены
+function startEditorSession() {
+  state.editorSession += 1;
+  state.sessionUploads = [];
+}
+
+// Файлы, которые после сохранения записи больше не нужны: убранные из записи
+// и загруженные в окне, но не оставленные в ней.
+function unusedPhotos(originalNote) {
+  const kept = new Set(state.currentPhotos.map(p => p.url));
+  const before = originalNote ? parsePhotos(originalNote.photo_url).map(p => p.url) : [];
+  return [...before, ...state.sessionUploads].filter(url => !kept.has(url));
+}
+
 export function openCreateModal() {
+  startEditorSession();
   state.currentEditingId = null;
   state.currentPhotos = [];
   document.getElementById('modalTitle').innerText = 'Новая запись';
@@ -37,9 +53,10 @@ export function openCreateModal() {
 }
 
 export function openEditModal(id) {
-  state.currentEditingId = id;
   const note = state.allNotes.find(n => n.id === id);
   if (!note) return;
+  startEditorSession();
+  state.currentEditingId = id;
 
   document.getElementById('modalTitle').innerText = 'Редактирование заметки';
   document.getElementById('modalText').value = note.text || '';
@@ -58,6 +75,15 @@ export function closeModal() {
   document.getElementById('editModal').classList.remove('flex');
   state.currentEditingId = null;
   state.currentPhotos = [];
+  state.sessionUploads = [];
+  state.editorSession += 1;
+}
+
+// «Отмена» / ✕: загруженные в окне, но не сохранённые фото удаляем из бакета
+export function cancelModal() {
+  const abandoned = state.sessionUploads;
+  closeModal();
+  deletePhotos(abandoned);
 }
 
 export async function saveCurrentNote() {
@@ -78,9 +104,13 @@ export async function saveCurrentNote() {
     photo_url: serializePhotos(state.currentPhotos),
   };
 
+  const originalNote = state.allNotes.find(n => n.id === state.currentEditingId) || null;
+  const unused = unusedPhotos(originalNote);
+
   if (state.currentEditingId === null) {
     const { error } = await insertNote(state.user.id, fields);
     if (!error) {
+      deletePhotos(unused);
       clearDraft();
       closeModal();
       state.openDays[formatDateRu(new Date())] = true;
@@ -93,6 +123,7 @@ export async function saveCurrentNote() {
   } else {
     const { error } = await updateNote(state.user.id, state.currentEditingId, fields);
     if (!error) {
+      deletePhotos(unused);
       closeModal();
       await loadNotes();
     } else {
@@ -104,8 +135,12 @@ export async function saveCurrentNote() {
 export async function deleteCurrentNote() {
   if (!confirm('⚠️ Внимание! Запись будет удалена безвозвратно. Вы абсолютно уверены?')) return;
 
+  const note = state.allNotes.find(n => n.id === state.currentEditingId);
+  const photos = [...(note ? parsePhotos(note.photo_url).map(p => p.url) : []), ...state.sessionUploads];
+
   const { error } = await deleteNote(state.user.id, state.currentEditingId);
   if (!error) {
+    deletePhotos(photos);
     closeModal();
     await loadNotes();
   } else {
@@ -119,7 +154,7 @@ export function initEditor() {
 
 export const actions = {
   openCreateModal: () => openCreateModal(),
-  closeModal: () => closeModal(),
+  closeModal: () => cancelModal(),
   saveCurrentNote: () => saveCurrentNote(),
   deleteCurrentNote: () => deleteCurrentNote(),
   openEditModal: (el) => openEditModal(Number(el.dataset.id)),

@@ -1,7 +1,8 @@
 import { state } from '../../state.js';
 import { MAX_PHOTOS, MAX_TOTAL_BYTES } from '../../config.js';
-import { uploadPhoto } from '../../services/photoStorage.js';
+import { uploadPhoto, deletePhotos } from '../../services/photoStorage.js';
 import { formatMB } from '../../utils/text.js';
+import { photoImgAttrs } from '../../services/photoUrls.js';
 
 export function totalPhotoBytes() {
   return state.currentPhotos.reduce((sum, p) => sum + (p.size || 0), 0);
@@ -34,6 +35,7 @@ export async function addPhotoFiles(fileList) {
   state.isUploading = true;
   renderModalImage();
   const problems = new Set();
+  const session = state.editorSession;
 
   for (const file of files) {
     if (state.currentPhotos.length >= MAX_PHOTOS) {
@@ -52,7 +54,13 @@ export async function addPhotoFiles(fileList) {
       continue;
     }
 
+    if (state.editorSession !== session) {   // окно закрыли, пока шла загрузка — файл никому не нужен
+      deletePhotos([url]);
+      break;
+    }
+
     state.currentPhotos.push({ url, size: file.size });
+    state.sessionUploads.push(url);
     renderModalImage();
   }
 
@@ -71,7 +79,7 @@ export function renderModalImage() {
     <div class="grid grid-cols-4 gap-2 mb-1">
       ${state.currentPhotos.map((p, i) => `
         <div class="relative aspect-square">
-          <img src="${p.url}" class="w-full h-full object-cover rounded-xl border border-slate-800">
+          <img ${photoImgAttrs(p)} class="w-full h-full object-cover rounded-xl border border-slate-800">
           <button type="button" data-action="removePhoto" data-index="${i}" title="Убрать фото" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-800 border border-slate-700 text-[10px] text-slate-300 hover:bg-red-900 hover:text-white flex items-center justify-center transition">✕</button>
         </div>
       `).join('')}

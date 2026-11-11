@@ -3,6 +3,7 @@ import { registerActions, initActionDelegation } from '../core/actions.js';
 import { startProtectedPage } from '../core/protectedPage.js';
 
 import { initStickyHeader } from '../ui/stickyHeader.js';
+import { initPhotoUrlRefresh } from '../services/photoUrls.js';
 import { loadNotes } from '../features/notes/notesController.js';
 
 import { actions as navigationActions } from '../features/navigation.js';
@@ -44,6 +45,7 @@ startProtectedPage(async (user) => {
   initPhotoUploader();
   initCarousel();
   initImageViewer();
+  initPhotoUrlRefresh();
 
   await loadNotes();
 });

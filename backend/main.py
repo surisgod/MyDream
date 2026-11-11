@@ -216,10 +216,10 @@ async def handle_photo(message: types.Message):
         file_options={"content-type": "image/jpeg"}
     )
 
-    # Получаем публичную ссылку на фото
-    photo_url = supabase.storage.from_("diary_photos").get_public_url(filename)
+    # Бакет приватный: в записи хранится путь файла, сайт сам получает временную ссылку на показ
+    photo_url = filename
 
-    # Сохраняем в таблицу запись вместе со ссылкой на фото
+    # Сохраняем в таблицу запись вместе с путём к фото
     caption = message.caption or ""
     supabase.table("notes").insert({
         "text": caption,

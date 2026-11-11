@@ -1,6 +1,8 @@
 import { state } from '../../state.js';
 import { fetchNotes } from '../../services/notesApi.js';
 import { groupByDate } from '../../utils/date.js';
+import { parsePhotos, toStoragePath } from '../../utils/photos.js';
+import { ensurePhotoUrls } from '../../services/photoUrls.js';
 import { renderTags } from '../feed/tags.js';
 import { renderNotes } from '../feed/feed.js';
 import { renderCalendar } from '../calendar/calendar.js';
@@ -15,6 +17,13 @@ export async function loadNotes() {
     return;
   }
   state.allNotes = data || [];
+
+  // фото лежат в приватном бакете — до показа получаем временные ссылки
+  const photoPaths = state.allNotes
+    .flatMap(note => parsePhotos(note.photo_url))
+    .map(photo => toStoragePath(photo.url))
+    .filter(Boolean);
+  await ensurePhotoUrls(photoPaths);
 
   const groups = groupByDate(state.allNotes);
   Object.keys(groups).forEach(date => {

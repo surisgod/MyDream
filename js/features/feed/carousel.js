@@ -1,4 +1,5 @@
 import { parsePhotos } from '../../utils/photos.js';
+import { photoImgAttrs } from '../../services/photoUrls.js';
 
 export function renderPhotoCarousel(note) {
   const photos = parsePhotos(note.photo_url);
@@ -7,7 +8,7 @@ export function renderPhotoCarousel(note) {
   if (photos.length === 1) {
     return `
       <div class="my-2">
-        <img src="${photos[0].url}" data-action="openImageModal" data-note-id="${note.id}" data-index="0" title="Нажмите, чтобы увеличить" class="rounded-xl max-h-80 w-auto max-w-full object-contain bg-slate-950 border border-slate-800 shadow-md cursor-pointer hover:opacity-90 transition">
+        <img ${photoImgAttrs(photos[0])} data-action="openImageModal" data-note-id="${note.id}" data-index="0" title="Нажмите, чтобы увеличить" class="rounded-xl max-h-80 w-auto max-w-full object-contain bg-slate-950 border border-slate-800 shadow-md cursor-pointer hover:opacity-90 transition">
       </div>
     `;
   }
@@ -17,7 +18,7 @@ export function renderPhotoCarousel(note) {
       <div class="carousel-scroll flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain no-scrollbar rounded-xl border border-slate-800 bg-slate-950">
         ${photos.map((p, i) => `
           <div class="shrink-0 w-full snap-center flex justify-center">
-            <img src="${p.url}" loading="lazy" data-action="openImageModal" data-note-id="${note.id}" data-index="${i}" class="max-h-80 w-auto max-w-full object-contain cursor-pointer">
+            <img ${photoImgAttrs(p)} loading="lazy" data-action="openImageModal" data-note-id="${note.id}" data-index="${i}" class="max-h-80 w-auto max-w-full object-contain cursor-pointer">
           </div>
         `).join('')}
       </div>

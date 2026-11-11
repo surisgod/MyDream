@@ -1,5 +1,6 @@
 import { state } from '../../state.js';
 import { parsePhotos } from '../../utils/photos.js';
+import { photoImgAttrs } from '../../services/photoUrls.js';
 
 export function openImageModal(noteId, index) {
   const note = state.allNotes.find(n => n.id === noteId);
@@ -10,7 +11,7 @@ export function openImageModal(noteId, index) {
   const scroller = document.getElementById('viewerScroller');
   scroller.innerHTML = photos.map(p => `
     <div class="shrink-0 w-full h-full snap-center flex items-center justify-center p-4" data-action="closeImageModalOnBackdrop">
-      <img src="${p.url}" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-800">
+      <img ${photoImgAttrs(p)} class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-800">
     </div>
   `).join('');
 
