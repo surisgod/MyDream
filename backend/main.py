@@ -7,10 +7,8 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
-from urllib.parse import parse_qsl
 
 import httpx
-import jwt  # PyJWT[crypto]
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -27,17 +25,13 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
 OWNER_ID = int(os.getenv("OWNER_ID", "8499249541"))
 
-# --- Авторизация сайта ---
-# Способ 1 (проще): Legacy JWT Secret из Supabase → Project Settings → JWT Keys → Legacy JWT Secret.
-# Токены подписываются HS256. Секрет хранить ТОЛЬКО на сервере: с ним можно выпустить любой токен.
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
-# Способ 2: приватный ключ ES256 в формате JWK (`npx supabase gen signing-key --algorithm ES256`),
-# импортированный в Supabase → JWT Keys. Используется, если SUPABASE_JWT_SECRET не задан.
-SUPABASE_JWT_PRIVATE_JWK = os.getenv("SUPABASE_JWT_PRIVATE_JWK")
-# Адреса сайта через запятую, которым разрешено обращаться к /auth/telegram
+# --- Telegram как второй способ входа на сайт (необязательно) ---
+# Основной вход на сайте — почта и пароль (Supabase Auth). Telegram привязывается к аккаунту в настройках сайта,
+# после чего можно входить через него. Для этого SUPABASE_KEY должен быть сервисным ключом (service_role):
+# сервер читает таблицу telegram_links, проверяет вход пользователя и просит у Supabase одноразовый вход.
+# Адреса сайта через запятую, которым разрешено обращаться к API (например https://имя.github.io)
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
-TOKEN_TTL = 3600           # срок жизни токена, секунд
-MAX_AUTH_AGE = 24 * 3600   # насколько свежими должны быть данные Telegram, секунд
+LOGIN_MAX_AGE = 300   # насколько свежими должны быть данные Telegram при входе и привязке, секунд
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -78,14 +72,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["POST", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
-# ---------- Авторизация сайта: проверка данных Telegram и выдача JWT ----------
-class AuthRequest(BaseModel):
-    init_data: Optional[str] = None   # Telegram Mini App: сырая строка initData
-    widget: Optional[dict] = None     # Telegram Login Widget: объект пользователя
+# ---------- Вход через Telegram: привязка к аккаунту сайта и выдача одноразового входа ----------
+class WidgetRequest(BaseModel):
+    widget: dict   # данные Telegram Login Widget
 
 
 def _check_signature(data_check_string: str, secret: bytes, received_hash: Optional[str]):
@@ -99,22 +92,8 @@ def _check_fresh(auth_date) -> None:
         age = time.time() - int(auth_date)
     except (TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Нет auth_date")
-    if age > MAX_AUTH_AGE or age < -60:
+    if age > LOGIN_MAX_AGE or age < -60:
         raise HTTPException(status_code=401, detail="Данные Telegram устарели")
-
-
-def verify_init_data(init_data: str) -> dict:
-    """Проверка initData мини-приложения (секрет = HMAC('WebAppData', токен бота))."""
-    pairs = dict(parse_qsl(init_data, keep_blank_values=True))
-    received_hash = pairs.pop("hash", None)
-    check_string = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
-    secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
-    _check_signature(check_string, secret, received_hash)
-    _check_fresh(pairs.get("auth_date"))
-    try:
-        return json.loads(pairs["user"])
-    except (KeyError, ValueError):
-        raise HTTPException(status_code=401, detail="Нет данных пользователя")
 
 
 def verify_login_widget(widget: dict) -> dict:
@@ -130,42 +109,86 @@ def verify_login_widget(widget: dict) -> dict:
     return data
 
 
-_jwk = json.loads(SUPABASE_JWT_PRIVATE_JWK) if SUPABASE_JWT_PRIVATE_JWK else None
-_private_key = jwt.algorithms.ECAlgorithm.from_jwk(json.dumps(_jwk)) if _jwk else None
+def _current_user(request: Request):
+    """Пользователь сайта по токену Supabase Auth из заголовка Authorization."""
+    header = request.headers.get("authorization", "")
+    if not header.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Нужен вход на сайт")
+    try:
+        result = supabase.auth.get_user(header[7:].strip())
+    except Exception:
+        raise HTTPException(status_code=401, detail="Вход на сайт недействителен")
+    user = getattr(result, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Вход на сайт недействителен")
+    return user
 
 
-def mint_supabase_jwt(user_id: int) -> str:
-    now = int(time.time())
-    payload = {
-        "iss": f"{SUPABASE_URL}/auth/v1",
-        "aud": "authenticated",
-        "role": "authenticated",
-        "sub": str(user_id),
-        "iat": now,
-        "exp": now + TOKEN_TTL,
-    }
-    if SUPABASE_JWT_SECRET:
-        return jwt.encode(payload, SUPABASE_JWT_SECRET, algorithm="HS256")
-    return jwt.encode(payload, _private_key, algorithm="ES256", headers={"kid": _jwk["kid"]})
+def _save_link(user_id: str, tg: dict) -> None:
+    telegram_id = int(tg["id"])
+    auth_date = int(tg["auth_date"])
+
+    existing = supabase.table("telegram_links").select("user_id,last_auth_date").eq("telegram_id", telegram_id).execute().data
+    if existing and existing[0]["user_id"] != user_id:
+        raise HTTPException(status_code=409, detail="Этот Telegram уже привязан к другому аккаунту")
+    if existing and auth_date <= int(existing[0].get("last_auth_date") or 0):
+        raise HTTPException(status_code=401, detail="Данные Telegram уже использованы")
+
+    supabase.table("telegram_links").delete().eq("user_id", user_id).execute()
+    supabase.table("telegram_links").insert({
+        "telegram_id": telegram_id,
+        "user_id": user_id,
+        "first_name": tg.get("first_name"),
+        "username": tg.get("username"),
+        "last_auth_date": auth_date,
+    }).execute()
+
+
+def _login_token_hash(tg: dict) -> str:
+    telegram_id = int(tg["id"])
+    auth_date = int(tg["auth_date"])
+
+    rows = supabase.table("telegram_links").select("user_id").eq("telegram_id", telegram_id).execute().data
+    if not rows:
+        raise HTTPException(status_code=404, detail="not_linked")
+
+    # Одни и те же данные Telegram работают один раз: сначала «занимаем» auth_date, и только потом выдаём вход
+    claimed = supabase.table("telegram_links").update({"last_auth_date": auth_date}) \
+        .eq("telegram_id", telegram_id).lt("last_auth_date", auth_date).execute().data
+    if not claimed:
+        raise HTTPException(status_code=401, detail="Данные Telegram уже использованы")
+
+    email = supabase.auth.admin.get_user_by_id(rows[0]["user_id"]).user.email
+    link = supabase.auth.admin.generate_link({"type": "magiclink", "email": email})
+    return link.properties.hashed_token
+
+
+@app.post("/telegram/link")
+async def telegram_link(body: WidgetRequest, request: Request):
+    """Привязать Telegram к аккаунту, под которым человек сейчас вошёл на сайте."""
+    user = await asyncio.to_thread(_current_user, request)
+    tg = verify_login_widget(body.widget)
+    if int(tg["id"]) != OWNER_ID:
+        raise HTTPException(status_code=403, detail="Этот Telegram нельзя привязать")
+    await asyncio.to_thread(_save_link, user.id, tg)
+    return {"ok": True}
+
+
+@app.post("/telegram/unlink")
+async def telegram_unlink(request: Request):
+    user = await asyncio.to_thread(_current_user, request)
+    await asyncio.to_thread(lambda: supabase.table("telegram_links").delete().eq("user_id", user.id).execute())
+    return {"ok": True}
 
 
 @app.post("/auth/telegram")
-async def auth_telegram(body: AuthRequest):
-    if not SUPABASE_JWT_SECRET and _private_key is None:
-        raise HTTPException(status_code=500, detail="Не задан SUPABASE_JWT_SECRET (или SUPABASE_JWT_PRIVATE_JWK)")
+async def auth_telegram(body: WidgetRequest):
+    """Вход через Telegram для привязанного аккаунта. Возвращает одноразовый token_hash:
+    сайт обменивает его на обычную сессию Supabase (auth.verifyOtp)."""
+    tg = verify_login_widget(body.widget)
+    token_hash = await asyncio.to_thread(_login_token_hash, tg)
+    return {"token_hash": token_hash}
 
-    if body.init_data:
-        user = verify_init_data(body.init_data)
-    elif body.widget:
-        user = verify_login_widget(body.widget)
-    else:
-        raise HTTPException(status_code=400, detail="Нужны init_data или widget")
-
-    user_id = int(user["id"])
-    if user_id != OWNER_ID:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-
-    return {"access_token": mint_supabase_jwt(user_id), "expires_in": TOKEN_TTL}
 
 # Все обработчики сообщений работают ТОЛЬКО для владельца.
 dp.message.filter(F.from_user.id == OWNER_ID)

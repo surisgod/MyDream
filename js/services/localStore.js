@@ -1,9 +1,4 @@
-import { STORAGE_KEYS, OWN_KEY_PREFIXES, LEGACY_KEYS } from '../config.js';
-
-export const getSavedUser = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.user) || 'null');
-export const saveUser = (user) => localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
-
-export const clearUser = () => localStorage.removeItem(STORAGE_KEYS.user);
+import { STORAGE_KEYS, OWN_KEY_PREFIXES, LEGACY_KEYS, OBSOLETE_KEYS } from '../config.js';
 
 export const getDraft = () => localStorage.getItem(STORAGE_KEYS.draft) || '';
 export const saveDraft = (text) => localStorage.setItem(STORAGE_KEYS.draft, text);
@@ -37,9 +32,11 @@ export function wipeLocalData() {
   return false;
 }
 
-// Один раз переносит данные прошлой версии (ключи без префикса) под новые имена
-(function migrateLegacyKeys() {
+// Вызывается при загрузке каждой страницы (pages/*.js). Один раз переносит данные прошлой версии (ключи без префикса) под новые имена
+// и удаляет ключи входа через Telegram, которые больше не используются
+export function migrateLegacyKeys() {
   try {
+    OBSOLETE_KEYS.forEach(key => localStorage.removeItem(key));
     for (const [oldKey, newKey] of Object.entries(LEGACY_KEYS)) {
       const value = localStorage.getItem(oldKey);
       if (value === null) continue;
@@ -47,4 +44,4 @@ export function wipeLocalData() {
       localStorage.removeItem(oldKey);
     }
   } catch (e) { /* хранилище недоступно — ничего не переносим */ }
-})();
+}

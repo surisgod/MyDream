@@ -1,7 +1,5 @@
 import { VISIT_URL } from '../config.js';
-import { resolveCurrentUser } from '../services/auth.js';
-import { authenticate } from '../services/session.js';
-import { clearUser } from '../services/localStore.js';
+import { hasSavedSession, forgetSession, getVerifiedUser, isNetworkError } from '../services/auth.js';
 
 // Защита страниц дневника (notes/, notes/settings/ и будущих). На странице должны быть блоки:
 //   #appLoader (с #appLoaderText и ссылкой #appLoaderBack) — виден, пока идёт проверка;
@@ -11,7 +9,7 @@ import { clearUser } from '../services/localStore.js';
 const show = (id) => document.getElementById(id).classList.remove('hidden');
 const hide = (id) => document.getElementById(id).classList.add('hidden');
 
-// reason — почему вернули: 'expired' | 'denied' (визитка покажет это в окне входа)
+// reason — почему вернули: 'expired' (визитка покажет это в окне входа)
 export function goToVisit(reason) {
   location.replace(reason ? `${VISIT_URL}?e=${reason}` : VISIT_URL);
 }
@@ -25,43 +23,41 @@ function showStatus(text, { error = false, canGoBack = false } = {}) {
   show('appLoader');
 }
 
-function handleAuthError(error, credentials) {
+function handleAuthError(error) {
   console.error(error);
-  const denied = error.status === 401 || error.status === 403;
 
-  // сохранённый вход устарел или аккаунт не подходит — забываем его; войти можно через аватарку на визитке
-  if (credentials.widget && denied) {
-    clearUser();
-    goToVisit(error.status === 403 ? 'denied' : 'expired');
+  // Сервер входа недоступен — это не повод разлогинивать: показываем ошибку и ссылку на визитку
+  if (isNetworkError(error)) {
+    showStatus('Не удалось связаться с сервером. Проверьте интернет и попробуйте позже.', { error: true, canGoBack: true });
     return;
   }
 
-  showStatus(denied
-    ? '⛔ Доступ запрещен'
-    : 'Не удалось подключиться к серверу авторизации. Попробуйте позже.', { error: true, canGoBack: true });
+  // Вход недействителен (истёк, отозван) — забываем его, войти заново можно через аватарку на визитке
+  forgetSession();
+  goToVisit('expired');
 }
 
-// onReady(user) вызывается после успешной проверки, когда страница уже показана
+// onReady(user) вызывается после успешной проверки, когда страница уже показана; user = { id, email }
 export async function startProtectedPage(onReady) {
   // Вернулись кнопкой «Назад» на страницу из кэша браузера, а вход уже сброшен — дневник не показываем
   window.addEventListener('pageshow', (event) => {
-    if (event.persisted && !resolveCurrentUser()) goToVisit();
+    if (event.persisted && !hasSavedSession()) goToVisit();
   });
 
-  const session = resolveCurrentUser();
-  if (!session) {
+  if (!hasSavedSession()) {
     goToVisit();
     return;
   }
 
+  let user;
   try {
-    await authenticate(session.credentials);
+    user = await getVerifiedUser();
   } catch (error) {
-    handleAuthError(error, session.credentials);
+    handleAuthError(error);
     return;
   }
 
   hide('appLoader');
   show('appRoot');
-  await onReady(session.user);
+  await onReady(user);
 }

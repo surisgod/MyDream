@@ -1,24 +1,25 @@
 import { registerActions, initActionDelegation } from '../core/actions.js';
-import { resolveCurrentUser } from '../services/auth.js';
+import { hasSavedSession } from '../services/auth.js';
 import { actions as loginActions, initLoginModal, openLoginModal } from '../features/auth/loginModal.js';
 import { NOTES_URL } from '../config.js';
+import { migrateLegacyKeys } from '../services/localStore.js';
 
 // Причины, по которым дневник вернул человека на визитку (см. goToVisit в pages/notes.js)
 const REASONS = {
   expired: 'Вход устарел. Войдите заново.',
-  denied: 'Этот аккаунт не подходит. Войдите в аккаунт автора.',
 };
 
 registerActions({
   ...loginActions,
   // Аватарка: есть сохранённый вход — идём в дневник (он сам перепроверит вход на сервере
-  // и вернёт сюда, если вход не подошёл); нет — открываем окно входа.
+  // и вернёт сюда, если вход недействителен); нет — открываем окно входа.
   onAvatarClick: () => {
-    if (resolveCurrentUser()) location.href = NOTES_URL;
+    if (hasSavedSession()) location.href = NOTES_URL;
     else openLoginModal();
   },
 });
 
+migrateLegacyKeys();
 initActionDelegation();
 initLoginModal();
 

@@ -1,35 +1,82 @@
-import { BOT_USERNAME, NOTES_URL } from '../config.js';
-import { getTelegramUser, getInitData } from './telegram.js';
-import { getSavedUser, saveUser } from './localStore.js';
+import { AUTH_STORAGE_KEY, SUPABASE_CDN } from '../config.js';
 
-// Возвращает { user, credentials } или null, если нужно показать экран входа.
-// credentials уходят на сервер, который проверяет подпись Telegram.
-export function resolveCurrentUser() {
-  const tgUser = getTelegramUser();
-  if (tgUser && tgUser.id) {
-    if (window.location.search || window.location.hash.includes('tgWebAppData')) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    return { user: tgUser, credentials: { init_data: getInitData() } };
+// Вход через Supabase Auth (почта + пароль). Это единственный модуль, который знает, КАК человек входит:
+// другой способ входа (ссылка на почту, пароль + код и т.п.) меняется здесь, остальной сайт не затрагивается.
+
+// Есть ли сохранённый вход (без запросов в сеть). Настоящая проверка — getVerifiedUser().
+export function hasSavedSession() {
+  try { return localStorage.getItem(AUTH_STORAGE_KEY) !== null; } catch (e) { return false; }
+}
+
+// Забывает сохранённый вход в этом браузере
+export function forgetSession() {
+  try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch (e) { /* хранилище недоступно */ }
+}
+
+function loadSupabaseScript() {
+  if (window.supabase) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = SUPABASE_CDN;
+    script.onload = resolve;
+    script.onerror = () => reject(new TypeError('Не удалось загрузить Supabase'));
+    document.head.appendChild(script);
+  });
+}
+
+// Клиент Supabase. На визитке скрипт подгружается только когда он нужен (окно входа),
+// на страницах дневника и настроек он уже подключён в HTML.
+let clientPromise = null;
+export function getAuthClient() {
+  if (!clientPromise) {
+    clientPromise = loadSupabaseScript()
+      .then(() => import('./supabase.js'))
+      .then(module => module.supabaseClient)
+      .catch(error => { clientPromise = null; throw error; });
   }
-  const saved = getSavedUser();
-  return saved ? { user: saved, credentials: { widget: saved } } : null;
+  return clientPromise;
 }
 
+// Подгрузить заранее (например, при открытии окна входа), чтобы вход прошёл быстрее
+export const preloadAuth = () => getAuthClient().catch(() => {});
 
-// Кнопка «Войти через Telegram» — рисуется внутри окна входа (см. features/auth/loginModal.js)
-export function mountTelegramWidget(container) {
-  const script = document.createElement('script');
-  script.async = true;
-  script.src = "https://telegram.org/js/telegram-widget.js?22";
-  script.setAttribute('data-telegram-login', BOT_USERNAME);
-  script.setAttribute('data-size', 'large');
-  script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-  container.appendChild(script);
+const toUser = (user) => ({ id: user.id, email: user.email || '' });
+
+export async function signIn(email, password) {
+  const client = await getAuthClient();
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return toUser(data.user);
 }
 
-// Вызывается виджетом Telegram, поэтому должна быть глобальной
-window.onTelegramAuth = function (user) {
-  saveUser(user);
-  location.href = NOTES_URL;
-};
+// Проверяет вход на сервере Supabase (при необходимости обновляя токен).
+// Бросает ошибку, если входа нет или он недействителен.
+export async function getVerifiedUser() {
+  const client = await getAuthClient();
+  const { data, error } = await client.auth.getUser();
+  if (error) throw error;
+  if (!data || !data.user) throw new Error('Нет входа');
+  return toUser(data.user);
+}
+
+// Выход на этом устройстве. Если сервер недоступен, вход всё равно забывается локально.
+export async function signOut() {
+  try {
+    const client = await getAuthClient();
+    await Promise.race([
+      client.auth.signOut({ scope: 'local' }),
+      new Promise(resolve => setTimeout(resolve, 3000)),
+    ]);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    forgetSession();
+  }
+}
+
+// Ошибка связана с сетью или сервером (а не с тем, что вход недействителен)?
+export function isNetworkError(error) {
+  return error instanceof TypeError
+    || (error && error.name === 'AuthRetryableFetchError')
+    || (error && (error.status === 0 || error.status >= 500));
+}

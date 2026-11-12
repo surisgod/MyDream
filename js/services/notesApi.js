@@ -2,20 +2,21 @@ import { supabaseClient } from './supabase.js';
 import { NOTES_TABLE } from '../config.js';
 
 // Все функции возвращают результат Supabase как есть: { data, error }.
-// Каждая запись принадлежит пользователю Telegram (колонка user_id).
+// Каждая запись принадлежит пользователю Supabase Auth (колонка owner_id, UUID).
+// Доступ к чужим записям закрыт политиками RLS в базе — фильтр здесь лишь дублирует их.
 const table = () => supabaseClient.from(NOTES_TABLE);
 
 export const fetchNotes = (userId) =>
-  table().select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  table().select('*').eq('owner_id', userId).order('created_at', { ascending: false });
 
 export const insertNote = (userId, fields) =>
-  table().insert([{ ...fields, user_id: userId }]);
+  table().insert([{ ...fields, owner_id: userId }]);
 
 export const updateNote = (userId, id, fields) =>
-  table().update(fields).eq('id', id).eq('user_id', userId);
+  table().update(fields).eq('id', id).eq('owner_id', userId);
 
 export const deleteNote = (userId, id) =>
-  table().delete().eq('id', id).eq('user_id', userId);
+  table().delete().eq('id', id).eq('owner_id', userId);
 
 // photo_url всех записей, у которых есть фото. Читаем постранично: за один запрос Supabase
 // отдаёт не больше 1000 строк, и без этого ссылки из «хвоста» таблицы потерялись бы.

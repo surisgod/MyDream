@@ -4,16 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Мой Дневник</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body style="background:#020617">
-  <!-- Главный адрес сайта: вошедших (или открывших из Telegram) ведёт в дневник, остальных — на визитку.
-       Ключи совпадают с STORAGE_KEYS.user и LEGACY_KEYS в js/config.js -->
+  <!-- Главный адрес сайта: вошедших ведёт в дневник, остальных — на визитку.
+       Ключ совпадает с AUTH_STORAGE_KEY в js/config.js; настоящая проверка входа — на странице дневника -->
   <script>
-    var inTelegram = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData;
     var saved = null;
-    try { saved = localStorage.getItem('mydream:tg_user') || localStorage.getItem('tg_user'); } catch (e) {}
-    location.replace((inTelegram || saved) ? 'notes/' : 'visit/');
+    try { saved = localStorage.getItem('mydream:auth'); } catch (e) {}
+    location.replace(saved ? 'notes/' : 'visit/');
   </script>
   <noscript><a href="visit/">Перейти на сайт</a></noscript>
 </body>

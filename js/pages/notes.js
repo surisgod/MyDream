@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { registerActions, initActionDelegation } from '../core/actions.js';
 import { startProtectedPage } from '../core/protectedPage.js';
+import { migrateLegacyKeys } from '../services/localStore.js';
 
 import { initStickyHeader } from '../ui/stickyHeader.js';
 import { initPhotoUrlRefresh } from '../services/photoUrls.js';
@@ -33,11 +34,12 @@ registerActions({
   ...viewerActions,
 });
 
+migrateLegacyKeys();
 initActionDelegation();
 
 startProtectedPage(async (user) => {
   state.user = user;
-  document.getElementById('userInfo').innerHTML = `👤 ${user.first_name || 'Владелец'}`;
+  document.getElementById('userInfo').textContent = `👤 ${user.email.split('@')[0] || 'Владелец'}`;
 
   initStickyHeader();   // после показа страницы, чтобы шапка измерилась корректно
   initSearch();

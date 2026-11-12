@@ -6,7 +6,6 @@
   <title>Настройки — Мой Дневник</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-20">
 
@@ -35,6 +34,16 @@
           <button id="cleanupBtn" data-action="cleanupPhotos" class="px-4 py-2.5 bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-sm hover:bg-slate-700 transition disabled:opacity-50 disabled:pointer-events-none">Очистить неиспользуемые фото</button>
           <span id="cleanupResult" class="text-xs text-slate-400" aria-live="polite"></span>
         </div>
+      </section>
+
+      <!-- Показывается, только если TELEGRAM_ENABLED = true в js/config.js -->
+      <section id="telegramSection" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <h2 class="text-sm font-semibold text-slate-300">Telegram</h2>
+        <p class="text-xs text-slate-500">Привяжите Telegram к аккаунту, и на сайт можно будет входить либо по почте и паролю, либо через Telegram.</p>
+        <p id="telegramStatus" class="text-xs text-slate-400">Проверяю…</p>
+        <div id="telegramLinkButton" class="hidden min-h-[40px]"></div>
+        <button id="telegramUnlinkBtn" data-action="unlinkTelegram" class="hidden px-4 py-2.5 bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-sm hover:bg-slate-700 transition">Отвязать Telegram</button>
+        <p id="telegramMessage" class="text-xs text-slate-400" aria-live="polite"></p>
       </section>
 
       <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
